@@ -1,0 +1,72 @@
+阶段 B 验收报告
+2026-11-23
+
+范围
+完成现有报修业务与Flowable联动，仅在固定隔离数据库验证。未开始阶段C/D交付。
+未改变JWT认证方式、业务接口路径及成功响应，没有新增请求去重表、查询API或复杂历史展示。
+
+新增/修改文件
+新增 security/CurrentActor.java：Service从JWT上下文获取ID、角色，校验业务归属。
+新增 exception/WorkflowConflictException.java；修改 GlobalExceptionHandler.java：统一409。
+新增 service/RepairWorkflowService.java：启动、当前任务查询、节点/操作人校验、任务分配完成与推进后校验。
+修改 service/RepairOrderService.java：所有状态写入事务化、锁行、条件更新、流程推进。
+修改 repository/RepairOrderRepository.java：锁行、实例关联、历史登记校验、REWORK到IN_PROGRESS。
+新增 config/WorkflowTransactionConfig.java：工作流启用时检查共用DataSource和事务管理器，不一致则启动失败。
+新增 resources/db/manual/B001-repair-workflow.sql：一次性关联字段、唯一索引和历史登记迁移，无自动执行入口。
+修改 application.properties：新增app.workflow.enabled=false，保持正式环境流程及自动建表关闭。
+新增 test/resources/workflow/business-fixture.sql：仅测试库业务表夹具，含主键、外键、唯一及状态约束。
+新增 workflow/RepairWorkflowIntegrationTest.java：11项真实PostgreSQL与引擎的业务接口集成测试。
+修改 DefaultWorkflowDisabledTest.java：增加默认写入开关503校验。
+更新JWT-API.txt、api-test.http。
+原Controller无需改动，原接口自然调用新的业务Service；Service忽略客户端操作人ID参数。
+
+实施步骤结果
+第一步：Repository关联、行锁、工作流Service及手工迁移脚本完成，编译通过。
+第二步：原Service所有写入口接入，接口及响应兼容；默认JWT及启动回归通过。
+第三步：返工、409和事务边界完成；启用时校验引擎/JDBC共用事务资源。
+第四步：隔离库迁移和全部27项测试通过。
+
+最终实际执行命令
+mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true"
+结果：27 tests, 0 failures, 0 errors, 0 skipped，BUILD SUCCESS。
+构成：AuthenticationTest 4、AuthorizationTest 5、DefaultWorkflowDisabledTest 2、FlowableStageATest 5、RepairWorkflowIntegrationTest 11。
+首轮故障注入测试因对事务代理进行Mockito桩设定而失败；已改为对代理目标注入，最终全部通过。
+
+阶段B实际通过场景
+1. 正常流程，各步核对业务状态、任务节点及businessKey，重复审核/派单/开始/结果被409拒绝，维修记录只有1条。
+2. 审核驳回，流程结束且重复审核409。
+3. 连续两次返工再通过验收，每轮保留原维修人员，最终3条维修记录。
+4. 错误角色、错误维修人员、错误学生403，伪造操作人字段不生效。
+5. 两个独立事务并发审核，得到200与409，节点只推进一次。
+6. 维修任务已真实完成后注入Flowable异常，返回409；业务状态、updated_at、维修记录及原任务ID全部回滚。
+7. 流程已真实启动后注入Flowable异常，新工单和流程实例均不提交，不留无流程工单。
+8. 业务状态与流程节点不一致、非历史工单关联缺失返回409。
+9. 两个独立事务并发提交维修结果，得到200与409且只插入一条维修记录。
+10. 模拟历史未完成工单沿用业务状态直到完成，不创建流程。
+11. 迁移登记的历史终态工单保持无实例，不能重新审核。
+实际接口集成使用MockMvc、真实Spring上下文/JWT过滤链、真实Service/JdbcTemplate/Flowable/PostgreSQL。
+仅故障注入使用Mockito Spy；不是针对正在运行的8080进程发起网络测试。
+共用事务资源由阶段A对象身份断言和阶段B启动检查验证。
+
+数据库影响
+仅 dorm_repair_flowable_a_test_20261123 增加测试业务表、process_instance_id、唯一索引和repair_order_legacy登记表。
+夹具及测试产生合成用户、工单、维修记录、流程历史，保留以供复核；没有复制正式库密码或用户数据。
+B001只执行一次，重复运行测试时检查字段已存在就跳过迁移，不重新登记后建工单。
+新业务工单缺失关联且不在历史登记中，会拒绝操作，不能因引擎错误降级。
+正式 dorm_repair_db 未迁移、未建Flowable表，repair_order仍无process_instance_id字段。
+正式结构schema-only导出与阶段A前基线一致（排除pg_dump随机restrict标记）。
+三张业务表内容摘要与阶段A前一致：
+sys_user 4036af1ede72daf79aacd58c2313caf3
+repair_order c78633494059004a5cb6361dcd5f513f
+repair_record 5da5db49226def7009c8d92d7a62722e
+工单1 REJECTED、2 COMPLETED、3 COMPLETED保持原样。
+
+未验证/限制
+未在正式库执行迁移或启用引擎，未测试真实Vue前端或独立Tomcat网络请求。
+尚未完成阶段D查询API和正式引擎迁移脚本；B001仅为业务关联迁移，不可独立当作正式上线步骤。
+app.workflow.enabled=false下写入关闭，连接数据库成功后返回503；数据库不可达仍可能在事务开启时失败。
+正式部署须先审批完整迁移/启用步骤；不能直接把开关改为true连接未迁移正式库。
+并发验证为两线程同工单争用，不代表负载/压力测试。
+异常注入覆盖创建和提交结果；不是所有节点逐个注入异常。
+历史登记表只能由受控迁移维护，应用不提供新增历史登记的HTTP入口。
+Git仓库未初始化，无提交或git diff。

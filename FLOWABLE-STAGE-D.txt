@@ -1,0 +1,103 @@
+阶段 D 验收报告（2026-11-23）
+
+结论
+完成必要查询接口、前端对接文档和非破坏性迁移准备。正式库未迁移、工作流写入仍关闭、正式JWT_SECRET未修改、未推送代码。
+代码具备隔离环境前端联调条件，正式8080实例不会因源码修改自动更新；按FRONTEND-API.md用integration profile启动独立18080。
+
+新增API及响应
+GET /api/repair-orders/{id}：工单对象，含id/student_id/repairer_id/title/description/location/status/created_at/updated_at。
+GET /api/repair-orders/{id}/records：items/page/size/total，按created_at和id升序，保留所有返工记录。
+GET /api/repair-orders/{id}/workflow：orderId/mode/status/processInstanceId/currentNode/currentTask/ended/allowedActions。
+GET /api/workflow/tasks：items/page/size/total，按当前角色、业务归属、真实节点、负责人和暂停状态过滤。
+GET /api/users/repairers：仅ADMIN，items/page/size/total，每项仅id/username/real_name。
+详情/记录/流程查询对不存在或不可见工单统一404，其他角色权限403；401/400/409/503保持统一code/message。
+结束流程核查历史实例和结束事件，LEGACY不伪造实例，挂起实例无allowedActions。
+新分页接口默认size20、最大100，page范围0..100000；非法参数400，越过尾页返回空items。
+原GET列表保留数组，增加page/size/status参数，默认size100、最大100；可翻页取全量，避免无上限响应。
+待办使用固定7.2.0表结构的只读联表count+分页查询，不循环调用工单/任务查询，避免N+1。
+其他查询均固定次数查询，不按结果项发起查询；查询事务使用REPEATABLE_READ保证分页计数和归属的一致快照。
+不新增任何直接完成引擎任务、修改变量的接口。
+
+修改文件清单（均相对 D:\dorm-repair\dorm-repair-backend）
+新增 src/main/java/com/dormrepair/controller/RepairQueryController.java
+新增 src/main/java/com/dormrepair/service/RepairQueryService.java
+修改 controller/RepairOrderController.java：原数组列表增加分页/筛选参数。
+修改 service/RepairOrderService.java：有界列表查询入口。
+修改 repository/RepairOrderRepository.java：原列表上限及参数化分页/筛选。
+修改 security/CurrentActor.java：统一当前角色读取。
+修改 security/SecurityConfig.java：新增GET接口授权规则。
+修改 exception/GlobalExceptionHandler.java：参数类型400、连接不可用503。
+新增 src/main/resources/application-integration.properties：固定隔离库、18080、专用密钥变量、关闭自动DDL。
+新增 src/test/java/com/dormrepair/workflow/RepairQueryHttpTest.java
+新增 src/test/java/com/dormrepair/workflow/MigrationRehearsalTest.java
+新增 src/test/java/com/dormrepair/workflow/IntegrationProfileSmokeTest.java
+修改 DefaultWorkflowDisabledTest.java：增加真实连接失败503映射回归。
+修改 RepairWorkflowHttpTest.java：按测试类分别保存HTTP计数，避免子类覆盖阶段C证据。
+新增 deployment/postgres-flowable-7.2.0/010-common.sql、020-engine.sql、030-history.sql、040-business-association.sql、apply.sql、verify.sql、MANIFEST.json、Invoke-Migration.ps1、README.txt。
+新增 FRONTEND-API.md、FLOWABLE-STAGE-D.txt；更新 JWT-API.txt、api-test.http（隔离地址及占位凭据）。
+未修改前端、pom版本、默认正式数据库连接、正式JWT配置或工作流默认关闭状态。
+
+实际执行验证
+最终完整命令：
+mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true" "-Dflowable.stageC=true" "-Dflowable.stageD=true"
+65项执行用例全部通过，0失败、0错误、0跳过，BUILD SUCCESS。
+65包含复用场景的不同执行环境，不应理解为65个不重复业务场景。
+RepairQueryHttpTest 20项（14项复用真实HTTP流程/安全场景，6项新增查询场景），379次真实HTTP请求。
+原RepairWorkflowHttpTest 14项，216次真实HTTP请求。
+另IntegrationProfileSmokeTest 1项，随机端口真实HTTP冒烟1次；合计596次HTTP请求。
+阶段D新增查询覆盖三角色、跨用户404、缺失404、无Token401、维修记录分页/多轮返工、结束历史、LEGACY、allowedActions、任务隔离、size/page边界、维修人员字段白名单及403、异常流程409、挂起实例无动作。
+原JWT、阶段A、阶段B、阶段C全部保留运行。
+迁移演练2项确认关闭自动DDL的引擎启动和真实业务Service创建关联实例，并验证合成历史1/2/3及维修记录不变。
+DefaultWorkflowDisabledTest额外验证连接失败时HTTP503；integration profile核实固定测试库及关闭自动DDL。
+
+详细测试构成
+com.dormrepair.security.AuthenticationTest: 4 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.security.AuthorizationTest: 5 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.DefaultWorkflowDisabledTest: 3 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.FlowableStageATest: 5 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.IntegrationProfileSmokeTest: 1 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.MigrationRehearsalTest: 2 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.RepairQueryHttpTest: 20 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.RepairWorkflowHttpTest: 14 tests, 0 failures, 0 errors, 0 skipped
+com.dormrepair.workflow.RepairWorkflowIntegrationTest: 11 tests, 0 failures, 0 errors, 0 skipped
+
+数据库影响与迁移准备
+既有独立库dorm_repair_flowable_a_test_20261123新增合成测试数据，未删除任何业务数据。
+新增独立迁移演练库dorm_repair_migration_test_20261123_d，仅复制正式库空结构，不复制真实用户/密码/工单。
+演练候选apply.sql成功提交：新增30张act_表、2张flw_表、关联字段/唯一索引、历史登记和版本记录表。
+Flowable内部schema/common版本7.2.0.2；Maven依赖版本7.2.0，两者不同不是冲突。
+演练历史合成工单1/2/3保留，新增工单成功关联流程；不影响正式ID1/2/3。
+正式脚本来源官方锁定版本JAR，字符串保持原样，SQL关键字/无引号标识符小写；MANIFEST记录原始及交付SHA256。
+包装脚本VerifyOnly校验全部文件实际字节SHA256通过，不连接数据库。
+故意错误expected_db的防护测试在演练库按预期退出3，未产生结构变更。
+只生成/演练SQL，未在dorm_repair_db运行apply或B001，没有开启正式自动建表。
+
+正式库最终核对
+schema-only导出与阶段C前结构完全一致（排除pg_dump随机restrict标记）。
+sys_user、repair_order、repair_record全部行摘要与阶段C前一致。
+原用户、工单1=REJECTED、2=COMPLETED、3=COMPLETED及维修记录全部保留。
+正式库仍仅3张业务表，repair_order仍9个原字段，无process_instance_id、引擎表或历史登记表。
+最终18080已释放，原8080进程39932仍监听；没有停止/替换它。
+
+正式迁移仍需批准的操作
+1. 维护窗口、停止所有正式写入者/旧版本实例，以及正式库完整备份的路径和执行。
+2. 在dorm_repair_db执行候选迁移包：引擎表、关联字段/索引、历史登记和版本记录。
+3. 正式配置开启APP_WORKFLOW_ENABLED/FLOWABLE_PROCESS_ENABLED，保持自动DDL为false，确认数据库变量及保留现有JWT_SECRET。
+4. 重启正式实例、部署BPMN、验证版本和共用事务资源。
+5. 只新增正式冒烟工单进行验证；不能操作历史工单1/2/3。
+以上均未执行。备份恢复、删除新增结构或降级旧写入版本不是本轮授权操作，失败时优先关闭写入并保留数据修复。
+详细执行顺序、验证SQL及回退说明见 deployment/postgres-flowable-7.2.0/README.txt。
+
+交付路径
+前端文档：D:\dorm-repair\dorm-repair-backend\FRONTEND-API.md
+迁移准备：D:\dorm-repair\dorm-repair-backend\deployment\postgres-flowable-7.2.0
+验收报告：D:\dorm-repair\dorm-repair-backend\FLOWABLE-STAGE-D.txt
+
+遗留限制
+Vue页面、路由守卫、浏览器CORS/代理和展示交互仍需前端成员联调；后端真实HTTP已验证。
+没有压力/负载测试。待办只读SQL绑定Flowable7.2.0表结构，升级引擎时必须回归。
+原数组列表没有total字段，前端需按空尾页判断结束；新分页对象含total。
+正式部署尚未执行；只有隔离环境可完整联调。默认配置工作流读写503是预期保护。
+联调账号需按FRONTEND-API.md自行交互初始化，自动化随机密码和Token不保存、不交付。
+未扩展统计、上传、通知或复杂轨迹。无远程推送、无系统配置修改、无新业务模块。
+阶段D完成后停止，等待验收。

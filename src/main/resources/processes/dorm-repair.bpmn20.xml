@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://dormrepair.example/workflow">
+<process id="dormRepair" name="宿舍报修流程" isExecutable="true">
+<startEvent id="submitStart" name="学生提交"/>
+<userTask id="adminReview" name="管理员审核" flowable:candidateGroups="ADMIN"/>
+<exclusiveGateway id="reviewDecision"/>
+<userTask id="adminAssign" name="管理员派单" flowable:candidateGroups="ADMIN"/>
+<userTask id="repairStart" name="开始维修" flowable:assignee="${repairerId}"/>
+<userTask id="repairFinish" name="维修并提交结果" flowable:assignee="${repairerId}"/>
+<userTask id="studentAcceptance" name="学生验收" flowable:assignee="${studentId}"/>
+<exclusiveGateway id="acceptanceDecision"/>
+<userTask id="reworkStart" name="开始返工" flowable:assignee="${repairerId}"/>
+<endEvent id="rejectedEnd" name="审核驳回结束"/>
+<endEvent id="completedEnd" name="维修完成"/>
+<sequenceFlow id="f0" sourceRef="submitStart" targetRef="adminReview"></sequenceFlow>
+<sequenceFlow id="f1" sourceRef="adminReview" targetRef="reviewDecision"></sequenceFlow>
+<sequenceFlow id="f2" sourceRef="reviewDecision" targetRef="adminAssign"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${reviewApproved == true}]]></conditionExpression></sequenceFlow>
+<sequenceFlow id="f3" sourceRef="reviewDecision" targetRef="rejectedEnd"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${reviewApproved == false}]]></conditionExpression></sequenceFlow>
+<sequenceFlow id="f4" sourceRef="adminAssign" targetRef="repairStart"></sequenceFlow>
+<sequenceFlow id="f5" sourceRef="repairStart" targetRef="repairFinish"></sequenceFlow>
+<sequenceFlow id="f6" sourceRef="repairFinish" targetRef="studentAcceptance"></sequenceFlow>
+<sequenceFlow id="f7" sourceRef="studentAcceptance" targetRef="acceptanceDecision"></sequenceFlow>
+<sequenceFlow id="f8" sourceRef="acceptanceDecision" targetRef="completedEnd"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${acceptanceApproved == true}]]></conditionExpression></sequenceFlow>
+<sequenceFlow id="f9" sourceRef="acceptanceDecision" targetRef="reworkStart"><conditionExpression xsi:type="tFormalExpression"><![CDATA[${acceptanceApproved == false}]]></conditionExpression></sequenceFlow>
+<sequenceFlow id="f10" sourceRef="reworkStart" targetRef="repairFinish"></sequenceFlow>
+</process>
+</definitions>

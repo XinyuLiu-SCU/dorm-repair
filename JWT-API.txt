@@ -1,0 +1,121 @@
+宿舍报修系统 JWT 阶段接口与运行说明
+
+一、运行
+保留 Spring Boot 3.5.16、Java 21、JDBC 架构。未引入 Flowable，未修改数据库结构。
+在 IDEA Spring Boot 运行配置中设置 DB_PASSWORD 和 JWT_SECRET（随机生成的至少32字节密钥），不要提交密钥。
+可用 PowerShell 生成密钥并仅设置当前进程环境：
+$env:JWT_SECRET = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+从该终端启动的 mvn spring-boot:run 才会继承此变量；IDEA 需单独配置。
+JWT_SECRET 缺失或少于32字节时启动失败。默认有效期3600秒（app.jwt.ttl-seconds，可配置1至86400）。
+CORS_ORIGINS 默认 http://localhost:5173，多个来源用逗号分隔，不允许 Cookie 凭据。
+停止旧的8080进程后重新启动新代码，不要同时运行两个实例。
+构建与验证：mvn clean test；mvn spring-boot:run。
+
+二、安全初始化测试账号
+不自动运行初始化，不替换原有占位哈希，不更新任何已有用户或工单。
+在交互式 PowerShell 中执行以下命令；数据库要求密码时设置 DB_PASSWORD，本地允许免密连接时可不设置：
+mvn package -DskipTests
+mvn dependency:build-classpath -Dmdep.outputFile=target/runtime-classpath.txt -DincludeScope=runtime
+$cp = "target/classes;" + (Get-Content target/runtime-classpath.txt -Raw).Trim()
+java -cp $cp com.dormrepair.tools.CreateTestUser jwt_demo_student STUDENT
+java -cp $cp com.dormrepair.tools.CreateTestUser jwt_demo_repairer REPAIRER
+java -cp $cp com.dormrepair.tools.CreateTestUser jwt_demo_admin ADMIN
+工具通过终端隐藏输入密码，密码至少12字符且不超过72个UTF-8字节。BCrypt 哈希写入数据库，不打印密码或哈希。
+默认连接 localhost:5432/dorm_repair_db、用户 sota；可用 DB_URL、DB_USER 覆盖。
+需现有 sys_user.username 唯一约束、id及created_at默认值；真实数据库结构尚未核实。如缺失，请先核查结构，不直接修改历史数据。
+同名账号不更新；原有占位哈希用户无法登录，请使用新账号。初始化工具尚未在真实数据库执行。
+
+三、认证接口（application/json）
+POST /api/auth/login 无需Token
+请求：{"username":"jwt_demo_student","password":"自行设置的密码"}
+成功200：{"accessToken":"<JWT>","tokenType":"Bearer","expiresIn":3600}
+用户名不存在、密码错误或占位哈希统一401：{"code":401,"message":"Invalid username or password"}
+GET /api/auth/me 携带 Authorization: Bearer <JWT>
+成功200：{"id":7,"username":"jwt_demo_student","role":"STUDENT"}
+永远不返回密码或哈希。me展示已签发Token中的身份信息。
+
+四、现有业务接口
+所有请求均需 Authorization: Bearer <JWT>。
+GET /api/repair-orders：三种角色；返回原有JSON数组。学生仅本人，维修人员仅分配给本人，管理员全部。
+示例：[ {"id":3,"student_id":7,"title":"漏水","description":"水龙头漏水","location":"1栋101","status":"PENDING","created_at":"...","updated_at":"..."} ]
+POST /api/repair-orders：STUDENT；{"title":"漏水","description":"水龙头漏水","location":"1栋101"}
+POST /api/repair-orders/{id}/approve：ADMIN，无请求体。
+POST /api/repair-orders/{id}/reject：ADMIN，无请求体。
+POST /api/repair-orders/{id}/assign：ADMIN；{"repairerId":8}。这里是管理员指定的目标维修人员，不是操作人。
+POST /api/repair-orders/{id}/start：REPAIRER，无请求体或{}。
+POST /api/repair-orders/{id}/finish：REPAIRER；{"description":"已更换水龙头"}
+POST /api/repair-orders/{id}/accept：STUDENT；{"approved":true}，false表示要求返工。
+创建成功返回 {"message":"报修申请提交成功","id":3}；其他操作返回message、id，派单另含repairerId。
+兼容旧请求中的studentId/repairerId字段，但创建、开始、提交结果和验收均忽略客户端操作人字段，使用Token用户ID。
+SQL仍校验归属及状态；原有维修完成状态更新和维修记录插入处于同一事务。
+GET /api/db-test 仅ADMIN；/api/hello及其他未授权路径默认拒绝。
+错误：401未登录/Token过期/无效；403角色不允许；400校验错误、非法状态或业务归属不匹配。归属不匹配沿用原业务400。
+统一错误主体code、message。数据库故障仍由框架返回500，不当作密码错误。
+状态：PENDING、APPROVED、ASSIGNED、IN_PROGRESS、WAITING_ACCEPTANCE、COMPLETED、REJECTED、REWORK。
+本阶段不更改状态机，原有REWORK重新开始维修闭环仍留待业务阶段完成。
+
+五、本地完整验证
+1. 配置环境变量、重启应用，确认不再打印自动生成的开发密码。
+2. 按上文新增三类独立账号并登录，GET /me确认用户ID和角色。
+3. 学生创建新工单，管理员审核并派给测试维修人员，维修人员开始并提交结果，学生验收。
+4. 使用另一个新学生/维修人员验证列表隔离及无法处理非本人工单。伪造请求中的ID不能改变操作人。
+5. 不带Token应401；学生审核或维修人员验收应403；篡改/过期Token应401。
+6. 确认历史工单1和2及历史用户均保持原样。勿对历史工单执行演示操作。
+7. 使用api-test.http手动粘贴各角色Token，再执行对应请求。
+Codex仅检查到5432接受连接，未取得数据库凭据；真实数据库登录、初始化及业务全链路均未执行。
+
+六、会话说明
+使用无状态Bearer Token，无Cookie登录、无服务器Session、无Basic/Form登录。
+退出由客户端删除Token；已签发Token在过期前仍可能有效。用户角色变更也在重新登录/Token到期后体现。
+不提供刷新Token及服务端黑名单；变更JWT_SECRET会使旧Token全部失效。
+
+
+Flowable 阶段 A（2026-11-23）
+仅完成依赖、隔离库引擎和BPMN验证，业务接口尚未接入Flowable。
+现有前端接口、JWT携带方式和返回结构保持原样，尚未提供工作流查询接口。
+默认配置 flowable.process.enabled=false、flowable.database-schema-update=false；正式库禁止开启自动建表。
+引擎测试仅通过测试类内的专用配置开启，数据库固定为 dorm_repair_flowable_a_test_20261123。
+运行：mvn -B test "-Dflowable.stageA=true"
+普通 mvn test 不运行该隔离库测试；显式启用时会向独立测试库写入流程和历史记录。
+独立测试库需预先存在，用户默认sota；如需密码使用FLOWABLE_TEST_DB_PASSWORD，不读取正式库DB_PASSWORD。
+本阶段未在resources中提供可误用于正式库的自动建表profile。
+
+
+阶段 B 更新（2026-11-23；本节覆盖前述阶段A的“业务尚未接入”说明）
+现有业务路径、请求及成功响应不变，Controller沿用原接口，Service再次从JWT上下文读取操作人。
+新增状态/流程冲突409：重复审核、派单、开始、提交结果、验收，以及业务状态与任务节点不一致。
+错误角色/其他学生/其他维修人员操作返回403；不存在工单404；参数错误400。
+返回错误格式仍为 {"code":409,"message":"Order state or workflow conflict; reload before retrying"}。
+REWORK现在可以由原维修人员调用原/{id}/start接口重新进入IN_PROGRESS，再finish和accept；可多次返工。
+新工单使用process_instance_id关联流程，businessKey=repair-order:<id>；每次写入均在同一事务、行锁内推进。
+迁移时已存在的工单登记在repair_order_legacy；历史已终结单保持不变，历史未完成单仅走原业务状态，不补建流程。
+未登记为历史且缺失流程关联的工单返回409，不降级；创建流程失败回滚新工单。
+当前默认 app.workflow.enabled=false、flowable.process.enabled=false、flowable.database-schema-update=false。
+这是尚未正式迁移的安全默认：登录、身份和列表可用，业务写入在数据库连接可用时返回503。
+请勿直接启用正式库工作流；B001脚本仅在隔离库验证，不包括正式库所需的Flowable引擎建表步骤。
+启用工作流时启动检查确保引擎和JdbcTemplate共用数据源及Spring事务管理器。
+阶段B测试：mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true"
+全部27项通过，包含真实PostgreSQL+Flowable+JWT过滤链的MockMvc集成测试；不依赖8080进程。
+未新增工作流查询HTTP接口、复杂历史或分页；也未增加Idempotency-Key。重复创建仍会产生不同工单。
+
+
+阶段C验证完成（2026-11-23）
+真实Tomcat：127.0.0.1:18080；测试库：dorm_repair_flowable_a_test_20261123。
+测试classpath的stage-c配置和内存随机JWT密钥，不影响正式环境。
+运行全部回归：mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true" "-Dflowable.stageC=true"
+41项全部通过，含14个真实HTTP场景、216次HTTP请求；测试后18080自动停止。
+故障注入、并发审核/结果、状态/记录/节点/负责人一致性均通过。详见FLOWABLE-STAGE-C.txt。
+正式库结构和业务数据未变，默认业务写入仍关闭；不要将api-test.http的演示写请求发送到未迁移正式库。
+阶段D查询接口尚未开发。
+
+
+阶段D：前端交付与迁移准备
+最新完整契约以FRONTEND-API.md为准。
+新增GET /api/repair-orders/{id}、/{id}/records、/{id}/workflow、/api/workflow/tasks、/api/users/repairers。
+详情/记录/流程查询对跨用户和不存在工单统一404。待办和维修人员使用items/page/size/total分页，最大size100。
+原GET工单列表保留数组，但现在支持page/size/status，默认size100、最多100，避免无上限响应。
+只读查询不返回密码哈希；当前任务仅供展示，无直接完成任务或变量写入接口。
+前端独立联调：integration profile，固定隔离库、18080、INTEGRATION_JWT_SECRET，自动DDL关闭。
+正式环境默认仍不激活工作流，不修改正式密钥；deployment/postgres-flowable-7.2.0为待审批迁移包，不是自动启动迁移。
+迁移包来自官方7.2.0脚本，包含30张act_表和2张flw_表；版本属性7.2.0.2。
+详见迁移README.txt、MANIFEST.json及FLOWABLE-STAGE-D.txt。

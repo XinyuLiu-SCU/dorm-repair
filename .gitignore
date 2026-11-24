@@ -1,0 +1,85 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.kotlin
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+# Local IDE state, HTTP client credentials and generated responses
+.idea/
+.run/
+http-client.private.env.json
+http-client.env.json
+http-client.cookies
+.http-client/
+*.http.bak
+
+# Credentials and machine-specific overrides (templates may be tracked)
+.env
+.env.*
+!.env.example
+!.env.template
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+settings.xml
+application-local.*
+application-private.*
+application-secrets.*
+*-local.properties
+
+# Build output, logs, database dumps and scratch files
+**/target/
+logs/
+*.log
+*.log.*
+*.dump
+*.backup
+*.bak
+*.tmp
+*.temp
+*.swp
+*.swo
+work/
+tmp/
+.temp/
+coverage/
+Thumbs.db
+Desktop.ini

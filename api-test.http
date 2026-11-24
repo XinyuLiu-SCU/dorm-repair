@@ -1,0 +1,143 @@
+@base = http://127.0.0.1:18080
+@studentToken = paste-token-locally
+@adminToken = paste-token-locally
+@repairerToken = paste-token-locally
+@orderId = replace-with-new-order-id
+@repairerId = replace-with-repairer-id
+
+### Login: replace password locally, never commit real credentials
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"jwt_demo_student","password":"fill-locally-do-not-commit"}
+
+### Me
+GET {{base}}/api/auth/me
+Authorization: Bearer {{studentToken}}
+
+### Visible orders
+GET {{base}}/api/repair-orders
+Authorization: Bearer {{studentToken}}
+
+### Create new demo order (use returned id)
+POST {{base}}/api/repair-orders
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{"title":"漏水","description":"水龙头漏水","location":"1栋101"}
+
+### Approve
+POST {{base}}/api/repair-orders/{{orderId}}/approve
+Authorization: Bearer {{adminToken}}
+
+### Assign
+POST {{base}}/api/repair-orders/{{orderId}}/assign
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"repairerId":{{repairerId}}}
+
+### Start
+POST {{base}}/api/repair-orders/{{orderId}}/start
+Authorization: Bearer {{repairerToken}}
+
+### Finish
+POST {{base}}/api/repair-orders/{{orderId}}/finish
+Authorization: Bearer {{repairerToken}}
+Content-Type: application/json
+
+{"description":"已更换水龙头"}
+
+### Accept
+POST {{base}}/api/repair-orders/{{orderId}}/accept
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{"approved":true}
+
+### Anonymous must return 401
+GET {{base}}/api/auth/me
+
+### Student approving must return 403
+POST {{base}}/api/repair-orders/{{orderId}}/approve
+Authorization: Bearer {{studentToken}}
+
+### 登录
+POST http://127.0.0.1:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "jwt_demo_student",
+  "password":"fill-locally-do-not-commit"
+}
+
+### 验证当前身份
+GET http://127.0.0.1:8080/api/auth/me
+Authorization: Bearer {{studentToken}}
+
+### 验证未登录
+GET http://127.0.0.1:8080/api/auth/me
+
+### 学生审核应返回403
+POST http://127.0.0.1:8080/api/repair-orders/999999/approve
+Authorization: Bearer {{studentToken}}
+### Flowable Stage A: engine tests only; business API unchanged.
+# Run: mvn -B test "-Dflowable.stageA=true"
+# No workflow HTTP endpoints until stages B/D.
+
+### Stage B notes: same business API; workflow enabled only in isolated tests.
+# Run: mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true"
+# Do not enable workflow or run migrations on dorm_repair_db yet.
+# Invalid transition/repeated operation: 409; wrong owner or role: 403.
+# Defaults keep workflow writes closed: 503 when database connectivity is available.
+
+### Request rework (after finish; use a NEW test order only)
+POST {{base}}/api/repair-orders/{{orderId}}/accept
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{"approved":false}
+
+### Restart rework with the same repairer; then call finish and accept again
+POST {{base}}/api/repair-orders/{{orderId}}/start
+Authorization: Bearer {{repairerToken}}
+
+### Stage C verified using real HTTP on 127.0.0.1:18080 (test server stops after suite).
+# Run all: mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true" "-Dflowable.stageC=true"
+# Test-only profile/key; production remains unmigrated and workflow writes disabled.
+# Do not run demo writes against the production database.
+
+### Stage D: activate integration profile on the isolated database first.
+# See FRONTEND-API.md. Replace orderId with the NEW order returned by create.
+
+### Detail (owner)
+GET {{base}}/api/repair-orders/{{orderId}}
+Authorization: Bearer {{studentToken}}
+
+### Repair records (all rework rounds, stable chronological order)
+GET {{base}}/api/repair-orders/{{orderId}}/records?page=0&size=20
+Authorization: Bearer {{studentToken}}
+
+### Workflow and allowed actions
+GET {{base}}/api/repair-orders/{{orderId}}/workflow
+Authorization: Bearer {{studentToken}}
+
+### Current user's pending tasks
+GET {{base}}/api/workflow/tasks?page=0&size=20
+Authorization: Bearer {{repairerToken}}
+
+### Repairer selection (admin only)
+GET {{base}}/api/users/repairers?page=0&size=20
+Authorization: Bearer {{adminToken}}
+
+### Bounded existing array list
+GET {{base}}/api/repair-orders?page=0&size=20&status=PENDING
+Authorization: Bearer {{adminToken}}
+
+### Pagination boundary: expect 400
+GET {{base}}/api/workflow/tasks?size=101
+Authorization: Bearer {{adminToken}}
+
+### Missing or invisible detail: expect 404
+GET {{base}}/api/repair-orders/9223372036854775807
+Authorization: Bearer {{studentToken}}

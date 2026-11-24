@@ -1,0 +1,87 @@
+阶段 C 验收报告：真实HTTP端到端验证与安全回归
+日期：2026-11-23
+
+结论
+阶段C完成。最终完整运行41项测试全部通过，其中14个真实HTTP场景，216次HTTP请求。
+正式数据库结构和业务数据保持不变；具备进入阶段D开发的条件，但未开始阶段D，也未申请或执行正式数据库迁移。
+
+实际环境
+Spring Boot 3.5.16，Java 21，Flowable 7.2.0，PostgreSQL 17.6。
+真实嵌入式Tomcat绑定127.0.0.1:18080；没有使用或停止8080。
+测试库 dorm_repair_flowable_a_test_20261123，继续复用已授权的隔离库。
+测试配置 src/test/resources/application-stage-c.properties，仅存在于测试classpath。
+配置由@ActiveProfiles(stage-c)和@DynamicPropertySource启用；工作流及自动建表仅在测试上下文开启。
+测试JWT密钥使用SecureRandom每次JVM生成32个随机字节，再Base64编码，直接作为现有实现的UTF-8密钥。
+密钥只保留于测试进程内存，不保存或打印，不读取/覆盖正式JWT_SECRET，不修改IDEA运行配置。
+新增账号使用随机密码、BCrypt哈希；密码和Token不保存或输出。
+FLOWABLE_TEST_DB_PASSWORD仅在测试数据库要求密码时使用；当前本地连接无需输入密码。
+最终运行21:51:22在18080成功启动，21:51:44完成HTTP测试并优雅关闭。
+最终只读端口检查：18080无监听；8080原进程仍监听。
+
+测试实现
+新增 src/test/java/com/dormrepair/workflow/RepairWorkflowHttpTest.java。
+复用阶段B业务断言，但覆盖请求发送方法，使用java.net.http.HttpClient经TCP访问真实Tomcat与DispatcherServlet。
+继承的并发测试也覆盖为真实HTTP并发，未通过MockMvc发送阶段C业务请求。
+数据库夹具沿用阶段B固定测试库和已验证迁移，不复制正式数据。
+故障注入仅使用测试上下文的Mockito Spy，在真实流程启动/完成后抛FlowableException，不新增生产故障注入接口。
+未修改生产Java代码、JWT方式、正式配置或业务接口。
+
+14个HTTP测试场景（全部通过）
+1 normalAndRepeatedOperations：正常完成全流程；重复审核、派单、开始、维修结果返回409。
+2 rejected：审核驳回结束；重复审核409。
+3 twiceReworkedThenCompleted：连续两次返工后验收通过，3条维修记录，原维修人员不变。
+4 roleAndOwnership：学生审核、非分配维修人员、其他学生、管理员越权验收均403；请求体ID不能冒充。
+5 concurrentApprovalOnlyOnce：两条真实HTTP请求并发审核，结果200/409，节点仅推进一次。
+6 failureAfterTaskCompletionRollsBackEverything：真实HTTP提交结果，完成真实任务后注入异常，返回409；业务状态、updated_at、维修记录、原任务ID均回滚。
+7 startFailureLeavesNoUnlinkedOrder：真实HTTP创建中启动流程后注入异常，工单、运行实例及流程历史均不增加。
+8 missingProcessAndWrongNodeRejected：模拟节点与业务状态不符、非历史工单关联缺失，HTTP409且不推进业务。
+9 concurrentFinishOnlyOneRecord：真实HTTP并发提交维修结果，200/409且仅生成1条维修记录。
+10 activeLegacyUsesOnlyBusinessStates：合成历史未完成工单完成业务流程，不补建实例。
+11 legacyDoesNotStartProcess：历史终态工单保持无实例，重复审核409。
+12 anonymousMalformedExpiredAndWrongSignature：无Token、格式错误Token、过期Token、其他密钥签名Token及不存在账号登录均401。
+13 realHttpListIsolation：学生/维修人员仅看到本人的工单，其他学生/维修人员不可见，管理员可见。
+14 malformedAndInvalidFields：空标题、缺少登录字段、损坏JSON均400。
+
+每个场景的夹具均通过真实HTTP登录学生、另一学生、维修人员、另一维修人员、管理员；随后GET /api/auth/me验证ID/角色及不返回密码字段。
+总计216次HTTP请求，包括夹具登录/身份查询及业务/安全请求；数量不等于216个独立测试方法。
+流程一致性验证直接查询真实引擎服务及隔离业务表，不为此新增阶段D查询接口。
+各步核对状态、实例businessKey、任务节点及负责人；结束时验证历史实例结束时间；维修记录归属和非空说明均核对。
+本阶段跨用户访问覆盖现有列表接口和操作接口，尚不存在的详情/工作流查询API不在本轮覆盖内。
+
+完整回归
+实际执行：
+mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true" "-Dflowable.stageC=true"
+最终结果：Tests run: 41, Failures: 0, Errors: 0, Skipped: 0，BUILD SUCCESS。
+AuthenticationTest 4；AuthorizationTest 5；DefaultWorkflowDisabledTest 2；FlowableStageATest 5；RepairWorkflowIntegrationTest 11；RepairWorkflowHttpTest 14。
+上述包含既有27项，不删除、不跳过旧测试。最终运行约1分钟。
+
+失败和修复记录
+首次编译发现新测试跨包调用SecurityConfig的包级方法，编译失败。
+修复仅在测试中使用独立NimbusJwtEncoder构造错误签名Token，不扩大生产方法可见性。
+修复后完整41项通过；补充流程历史、任务负责人、维修记录归属断言后，再次完整41项通过。
+未发现需要修改生产代码的真实HTTP问题。测试预期401/403/409属于通过的负面场景。
+Mockito动态代理警告仍存在，未影响结果。
+
+正式库保护证明
+执行前后仅只读pg_dump --schema-only及psql查询，未在正式库执行DDL/DML。
+结构导出规范化比较相同（仅排除pg_dump随机生成的restrict/unrestrict标记）。
+sys_user、repair_order、repair_record全部行的内容摘要前后相同。
+sys_user：4036af1ede72daf79aacd58c2313caf3
+repair_order：c78633494059004a5cb6361dcd5f513f
+repair_record：5da5db49226def7009c8d92d7a62722e
+工单1 REJECTED、2 COMPLETED、3 COMPLETED保持不变。
+证据保存在target/production-before-stage-c.sql、production-after-stage-c.sql、production-data-before-stage-c.txt、production-data-after-stage-c.txt。
+HTTP数量摘要target/stage-c-http-summary.txt；JUnit详细结果target/surefire-reports。
+隔离库新增合成测试用户、工单、维修记录和流程历史；没有删除任何数据库数据。
+
+交付文件
+src/test/java/com/dormrepair/workflow/RepairWorkflowHttpTest.java
+src/test/resources/application-stage-c.properties
+FLOWABLE-STAGE-C.txt
+JWT-API.txt、api-test.http（补充测试执行说明）
+
+后续边界
+满足进入阶段D开发的条件：正常/驳回/返工、HTTP安全、并发和回滚验证均通过。
+不代表正式环境已上线；正式迁移、工作流查询API、分页/复杂历史展示、Vue浏览器联调和负载测试尚未执行。
+默认正式配置仍关闭工作流写入及自动建表；未经确认不得修改。
+阶段C完成后停止，等待确认。
