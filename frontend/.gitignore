@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# Browser screenshots, sanitized run results and local test runtime
+artifacts/
+.playwright/

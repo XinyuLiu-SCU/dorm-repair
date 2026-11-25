@@ -1,0 +1,25 @@
+V1.1 真实浏览器测试（仅隔离库）
+Playwright版本：1.65.1
+本轮使用系统Microsoft Edge headless，真实加载Vue并点击/填写页面，不是page.request/HTTP替代。
+安装：npm.cmd install --prefix work/browser-tests --no-audit --no-fund playwright@1.65.1
+需已有5173 live前端和18080 integration后端。
+凭据默认读取原后端.env.frontend-demo.json，可用V11_DEMO_ACCOUNTS_FILE指定其他私有JSON文件。
+历史/挂起/跨用户夹具默认读取原后端.env.v11-browser-fixtures.json，可用V11_FIXTURE_ACCOUNTS_FILE覆盖。
+账号文件不在仓库，不提交实际密码或Token；fixtures包含本机隔离库的合成LEGACY和挂起流程，不可用于正式库。
+本轮夹具生成器在后端work/BrowserFixtures.java，需从后端目录用已有runtime-classpath运行；它只连接固定隔离库。
+
+命令：
+node tests/e2e/scenarios.cjs after
+node tests/e2e/edge-cases.cjs
+
+scenarios创建3张新隔离工单并实际完成正常、驳回和两次返工流程；before参数仅用于修复前对比。
+edge-cases复用scenarios最近的after/results.json及私有夹具；如长期反复运行使夹具不在当前页，需重新生成本机夹具后再测。
+每次流程使用唯一标题，老测试记录不自动删除。不要将当前测试数据与正式工单混淆。
+截图/结构化结果在artifacts/v1.1，默认掩码密码框，不录制含密码/Token的trace、HAR或视频。
+
+真实过期测试：
+只在所有其他浏览器场景结束后，操作者从后端work/Start-BrowserTestBackend.ps1 -Ttl 5启动隔离实例；
+再在前端运行node tests/e2e/real-expiry.cjs。
+该脚本检查真实expiresIn=5，等待Token过期和验证器默认约60秒宽限，点击页面刷新验证真实401、清空Token及路由。
+测试后必须用后端同一助手 -Ttl 3600恢复正常联调实例。不能在正式环境执行，不读取或覆盖正式JWT_SECRET。
+edge-cases另有明确标注的503、网络和过期会话401响应注入，它们只验证页面错误路径；真实过期以real-expiry结果为准。
