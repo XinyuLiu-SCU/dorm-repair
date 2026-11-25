@@ -1,0 +1,106 @@
+package com.dormrepair.v2.platform.migration;
+
+import java.nio.file.*;
+import java.sql.*;
+import java.util.*;
+import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.core.io.*;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
+import static org.junit.jupiter.api.Assertions.*;
+
+@EnabledIfSystemProperty(named="flowable.v2A",matches="true")
+class V2MigrationTest {
+ private DataSource ds(String suffix){return new DriverManagerDataSource("jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_"+suffix,System.getenv().getOrDefault("V2_DB_USER","sota"),System.getenv().getOrDefault("V2_DB_PASSWORD",""));}
+ private JdbcTemplate jdbc(DataSource ds){return new JdbcTemplate(ds);}
+ private Flyway flyway(DataSource ds,String... extra){
+  var locations=new ArrayList<String>();locations.add("classpath:db/v2/business");locations.addAll(List.of(extra));
+  return Flyway.configure().dataSource(ds).locations(locations.toArray(String[]::new)).defaultSchema("v2_business_history").schemas("v2_business_history")
+    .baselineOnMigrate(false).cleanDisabled(true).validateOnMigrate(true).validateMigrationNaming(true).group(true).mixed(false).load();
+ }
+ private void migrate(DataSource ds,Flyway flyway)throws Exception{V2MigrationConfiguration.verifyConfiguration(flyway);try(var c=ds.getConnection()){LegacySchemaVerifier.verifyBeforeFirstMigration(c);}flyway.migrate();}
+ private DataSource reset(String suffix)throws Exception {
+  assertTrue(Set.of("legacy","failure").contains(suffix));DataSource ds=ds(suffix);
+  try(var c=ds.getConnection()){
+   V2DatabaseTarget.requireTestReset(c);
+   try(var s=c.createStatement()) { s.execute("drop schema if exists v2_business_history cascade");s.execute("drop schema public cascade");s.execute("create schema public"); }
+  }return ds;
+ }
+ private void syntheticV1(DataSource ds)throws Exception{try(var c=ds.getConnection()){ScriptUtils.executeSqlScript(c,new ClassPathResource("workflow/business-fixture.sql"));ScriptUtils.executeSqlScript(c,new ClassPathResource("workflow/bootstrap-rehearsal.sql"));}}
+ private List<String> snapshot(DataSource ds,String table){return jdbc(ds).queryForList("select (to_jsonb(t)-'process_instance_id')::text from public."+table+" t order by id",String.class);}
+ @Test void emptyDatabaseAndRepeatMigrationCreateNoBusinessData()throws Exception {
+  var ds=reset("failure");migrate(ds,flyway(ds));migrate(ds,flyway(ds));
+  assertEquals(2,jdbc(ds).queryForObject("select count(*) from v2_business_history.flyway_schema_history where version is not null and success",Integer.class));
+  assertEquals(4,jdbc(ds).queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'",Integer.class));
+  for(String table:List.of("sys_user","repair_order","repair_record","repair_order_legacy"))assertEquals(0,jdbc(ds).queryForObject("select count(*) from public."+table,Integer.class));
+  assertEquals(0,jdbc(ds).queryForObject("select count(*) from information_schema.tables where table_schema='public' and (table_name like 'act_%' or table_name like 'flw_%')",Integer.class));
+ }
+ @Test void verifiedUnmigratedV1KeepsAllSyntheticRowsAndSequences()throws Exception {
+  var ds=reset("legacy");syntheticV1(ds);var users=snapshot(ds,"sys_user");var orders=snapshot(ds,"repair_order");var records=snapshot(ds,"repair_record");
+  Long sequence=jdbc(ds).queryForObject("select last_value from public.repair_order_id_seq",Long.class);
+  migrate(ds,flyway(ds));migrate(ds,flyway(ds));
+  assertEquals(users,snapshot(ds,"sys_user"));assertEquals(orders,snapshot(ds,"repair_order"));assertEquals(records,snapshot(ds,"repair_record"));
+  assertEquals(sequence,jdbc(ds).queryForObject("select last_value from public.repair_order_id_seq",Long.class));
+  assertEquals(3,jdbc(ds).queryForObject("select count(*) from public.repair_order_legacy",Integer.class));
+  assertEquals(List.of("REJECTED","COMPLETED","COMPLETED"),jdbc(ds).queryForList("select status from public.repair_order order by id",String.class));
+ }
+ @Test void existingWorkflowSchemaAndEngineTablesAreNotOwnedOrChanged()throws Exception {
+  var ds=reset("legacy");syntheticV1(ds);
+  try(var c=ds.getConnection()){
+   ScriptUtils.executeSqlScript(c,new ClassPathResource("db/manual/B001-repair-workflow.sql"));
+   for(String file:List.of("010-common.sql","020-engine.sql","030-history.sql"))ScriptUtils.executeSqlScript(c,new FileSystemResource("deployment/postgres-flowable-7.2.0/"+file));
+  }
+  var rows=jdbc(ds).queryForList("select * from public.act_ge_property order by name_");
+  String schema=jdbc(ds).queryForObject("select md5(string_agg(table_name||column_name||data_type,'|' order by table_name,ordinal_position)) from information_schema.columns where table_schema='public'",String.class);
+  migrate(ds,flyway(ds));
+  assertEquals(rows,jdbc(ds).queryForList("select * from public.act_ge_property order by name_"));
+  assertEquals(schema,jdbc(ds).queryForObject("select md5(string_agg(table_name||column_name||data_type,'|' order by table_name,ordinal_position)) from information_schema.columns where table_schema='public'",String.class));
+  assertEquals(32,jdbc(ds).queryForObject("select count(*) from information_schema.tables where table_schema='public' and (table_name like 'act_%' or table_name like 'flw_%')",Integer.class));
+ }
+ @Test void partialSchemaRejectedBeforeFlywayHistoryCreation()throws Exception {
+  var ds=reset("failure");jdbc(ds).execute("create table public.sys_user(id bigint)");
+  assertThrows(IllegalStateException.class,()->migrate(ds,flyway(ds)));
+  assertNull(jdbc(ds).queryForObject("select to_regclass('v2_business_history.flyway_schema_history')::text",String.class));
+  assertEquals(1,jdbc(ds).queryForObject("select count(*) from information_schema.tables where table_schema='public'",Integer.class));
+ }
+ @Test void alteredColumnRejectedWithoutSilentBaseline()throws Exception {
+  var ds=reset("legacy");syntheticV1(ds);jdbc(ds).execute("alter table public.sys_user alter column username type varchar(49)");
+  assertThrows(IllegalStateException.class,()->migrate(ds,flyway(ds)));
+  assertNull(jdbc(ds).queryForObject("select to_regclass('v2_business_history.flyway_schema_history')::text",String.class));
+  assertEquals(49,jdbc(ds).queryForObject("select character_maximum_length from information_schema.columns where table_schema='public' and table_name='sys_user' and column_name='username'",Integer.class));
+ }
+ @Test void weakenedEnumConstraintIsNotAdopted()throws Exception {
+  var ds=reset("legacy");syntheticV1(ds);jdbc(ds).execute("alter table public.sys_user drop constraint sys_user_role_check");jdbc(ds).execute("alter table public.sys_user add constraint sys_user_role_check check (role in ('STUDENT','REPAIRER','ADMIN') or true)");
+  assertThrows(IllegalStateException.class,()->migrate(ds,flyway(ds)));assertNull(jdbc(ds).queryForObject("select to_regclass('v2_business_history.flyway_schema_history')::text",String.class));
+ }
+ @Test void missingForeignKeyRejected()throws Exception {
+  var ds=reset("legacy");syntheticV1(ds);jdbc(ds).execute("alter table public.repair_record drop constraint repair_record_order_id_fkey");
+  assertThrows(IllegalStateException.class,()->migrate(ds,flyway(ds)));
+  assertEquals(3,jdbc(ds).queryForObject("select count(*) from public.repair_order",Integer.class));
+ }
+ @Test void transactionFailureRollsBackAllBusinessDdl()throws Exception {
+  var ds=reset("failure");assertThrows(org.flywaydb.core.api.FlywayException.class,()->migrate(ds,flyway(ds,"classpath:db/v2/failure")));
+  assertEquals(0,jdbc(ds).queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'",Integer.class));
+  assertEquals(0,jdbc(ds).queryForObject("select count(*) from v2_business_history.flyway_schema_history where version is not null",Integer.class));
+  migrate(ds,flyway(ds));assertEquals(2,jdbc(ds).queryForObject("select count(*) from v2_business_history.flyway_schema_history where version is not null and success",Integer.class));
+ }
+ @Test void checksumMismatchFailsWithoutRepair(@TempDir Path temp)throws Exception {
+  var ds=reset("failure");migrate(ds,flyway(ds));
+  for(String name:List.of("V1__verify_or_bootstrap_v1_core.sql","V2__prepare_legacy_workflow_association.sql")) {
+   String text=new ClassPathResource("db/v2/business/"+name).getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+   Files.writeString(temp.resolve(name),text+(name.startsWith("V1")?"\nselect 42;\n":""));
+  }
+  var altered=Flyway.configure().dataSource(ds).locations("filesystem:"+temp).defaultSchema("v2_business_history").schemas("v2_business_history").cleanDisabled(true).load();
+  assertThrows(org.flywaydb.core.api.FlywayException.class,altered::validate);
+  assertEquals(2,jdbc(ds).queryForObject("select count(*) from v2_business_history.flyway_schema_history where version is not null and success",Integer.class));
+ }
+ @Test void flywayCleanIsDisabledEvenOnTheTestDatabase()throws Exception {
+  var ds=reset("failure");migrate(ds,flyway(ds));assertThrows(org.flywaydb.core.api.FlywayException.class,()->flyway(ds).clean());
+  assertNotNull(jdbc(ds).queryForObject("select to_regclass('public.sys_user')::text",String.class));
+ }
+}

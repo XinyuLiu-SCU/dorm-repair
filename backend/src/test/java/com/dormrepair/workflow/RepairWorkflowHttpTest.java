@@ -20,7 +20,7 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Reuses stage B scenario assertions, replacing transport with real TCP HTTP. */
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.DEFINED_PORT)
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("stage-c")
 @EnabledIfSystemProperty(named="flowable.stageC",matches="true")
 @DirtiesContext(classMode=DirtiesContext.ClassMode.AFTER_CLASS)
@@ -31,21 +31,24 @@ class RepairWorkflowHttpTest extends RepairWorkflowIntegrationTest {
  private static String randomSecret(){byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);return Base64.getEncoder().encodeToString(key);}
  @DynamicPropertySource static void httpProperties(DynamicPropertyRegistry registry) {
   registry.add("app.jwt.secret",()->SECRET);
-  registry.add("server.port",()->18080);
+  registry.add("server.port",()->0);
   registry.add("server.address",()->"127.0.0.1");
-  registry.add("spring.datasource.url",()->"jdbc:postgresql://localhost:5432/dorm_repair_flowable_a_test_20261123");
+  registry.add("spring.datasource.url",WorkflowTestTargets::primaryUrl);
   registry.add("app.workflow.enabled",()->true);
   registry.add("flowable.process.enabled",()->true);
   registry.add("flowable.database-schema-update",()->true);
  }
  @Autowired JwtEncoder encoder;
+ @org.springframework.boot.test.web.server.LocalServerPort int actualPort;
+ private static final AtomicInteger LAST_PORT=new AtomicInteger();
+ @BeforeEach void capturePort(){LAST_PORT.set(actualPort);}
  @BeforeAll static void resetCount(){REQUESTS.set(0);}
  @AfterAll static void summary(TestInfo info) throws Exception {
   java.nio.file.Files.writeString(java.nio.file.Path.of("target/"+info.getTestClass().orElseThrow().getSimpleName()+"-http-summary.txt"),
-   "Transport: java.net.http.HttpClient -> real embedded Tomcat\nPort: 18080, bind 127.0.0.1\nDatabase: dorm_repair_flowable_a_test_20261123\nRandom 32-byte test key: memory only\nCompleted HTTP requests: "+REQUESTS.get()+"\n");
+   "Transport: java.net.http.HttpClient -> real embedded Tomcat\nPort: "+LAST_PORT.get()+", bind 127.0.0.1\nDatabase: "+WorkflowTestTargets.database()+"\nRandom 32-byte test key: memory only\nCompleted HTTP requests: "+REQUESTS.get()+"\n");
  }
  HttpResponse<String> send(String method,String path,String token,Object body) throws Exception {
-  var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:18080"+path)).timeout(Duration.ofSeconds(20));
+  var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+actualPort+path)).timeout(Duration.ofSeconds(20));
   if(token!=null)request.header("Authorization","Bearer "+token);
   if(body!=null)request.header("Content-Type","application/json");
   request.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));

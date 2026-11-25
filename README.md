@@ -98,3 +98,9 @@ npm.cmd --prefix frontend run build
 Git不包含实际密钥、密码、本地环境、IDEA配置、target、node_modules或浏览器截图。历史报告的绝对路径/PID只作快照。
 
 V2设计仅在独立feature/v2-development分支docs/v2-design/；V1.1稳定标签不包含V2业务。本轮不实现V2、不执行正式迁移。
+
+## V2.0-A 隔离开发基础
+
+R2设计本地标签v2-design-r2。V2仅在独立开发分支；本阶段是迁移/测试/接口公共基础，不包含RBAC等业务。
+
+运行与测试见[隔离环境说明](docs/v2-development/V2.0-A-SETUP.md)，原理见[迁移机制](docs/v2-development/V2.0-A-MIGRATIONS.md)。使用18081和明确v2_dev/v2_test库，不停止8080/18080，不执行正式迁移。

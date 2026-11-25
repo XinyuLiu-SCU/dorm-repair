@@ -5,7 +5,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** All requests use the inherited real HTTP transport on isolated port 18080. */
+/** All requests use the inherited real HTTP transport on a random loopback port. */
 @EnabledIfSystemProperty(named="flowable.stageD",matches="true")
 class RepairQueryHttpTest extends RepairWorkflowHttpTest {
  String query(long id,String suffix){return "/api/repair-orders/"+id+suffix;}

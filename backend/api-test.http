@@ -141,3 +141,7 @@ Authorization: Bearer {{adminToken}}
 ### Missing or invisible detail: expect 404
 GET {{base}}/api/repair-orders/9223372036854775807
 Authorization: Bearer {{studentToken}}
+
+### V2.0-A isolated foundation: no token must return tracked V2 401
+GET http://127.0.0.1:18081/api/v2/system/info
+X-Request-Id: manual_v20a_review

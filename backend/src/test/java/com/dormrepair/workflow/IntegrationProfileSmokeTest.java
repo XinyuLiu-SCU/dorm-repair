@@ -17,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @DirtiesContext
 class IntegrationProfileSmokeTest {
  @DynamicPropertySource static void secret(DynamicPropertyRegistry registry) {
+  registry.add("spring.datasource.url",WorkflowTestTargets::primaryUrl);
+  registry.add("spring.datasource.username",()->System.getenv().getOrDefault("FLOWABLE_TEST_DB_USER","sota"));
+  registry.add("spring.datasource.password",()->System.getenv().getOrDefault("FLOWABLE_TEST_DB_PASSWORD",""));
   byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);
   String value=java.util.Base64.getEncoder().encodeToString(key);
   registry.add("INTEGRATION_JWT_SECRET",()->value);
@@ -25,7 +28,7 @@ class IntegrationProfileSmokeTest {
  @Autowired DataSource dataSource;
  @Autowired ProcessEngine engine;
  @Test void frontendProfileUsesIsolatedDatabaseAndStartsRealHttpWithoutDdl() throws Exception {
-  try(var c=dataSource.getConnection()){assertEquals("dorm_repair_flowable_a_test_20261123",c.getCatalog());}
+  try(var c=dataSource.getConnection()){assertEquals(WorkflowTestTargets.database(),c.getCatalog());}
   assertEquals("false",engine.getProcessEngineConfiguration().getDatabaseSchemaUpdate());
   var r=HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/auth/me")).GET().build(),HttpResponse.BodyHandlers.ofString());
   assertEquals(401,r.statusCode());

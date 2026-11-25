@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
  "app.workflow.enabled=true", "flowable.process.enabled=true", "flowable.database-schema-update=false", "flowable.history-level=audit"})
 @EnabledIfSystemProperty(named="flowable.stageD",matches="true")
 class MigrationRehearsalTest {
+ @org.springframework.test.context.DynamicPropertySource static void isolatedTarget(org.springframework.test.context.DynamicPropertyRegistry r){r.add("spring.datasource.url",WorkflowTestTargets::rehearsalUrl);}
+
  @Autowired ProcessEngine engine;
  @Autowired JdbcTemplate jdbc;
  @Autowired RepairOrderService service;

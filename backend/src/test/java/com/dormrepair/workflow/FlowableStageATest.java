@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.*;
 })
 @EnabledIfSystemProperty(named="flowable.stageA",matches="true")
 class FlowableStageATest {
+ @org.springframework.test.context.DynamicPropertySource static void isolatedTarget(org.springframework.test.context.DynamicPropertyRegistry r){r.add("spring.datasource.url",WorkflowTestTargets::primaryUrl);}
+
  @Autowired ProcessEngine engine;
  @Autowired RepositoryService repository;
  @Autowired RuntimeService runtime;
@@ -28,7 +30,7 @@ class FlowableStageATest {
  @Autowired PlatformTransactionManager transactionManager;
  @Autowired JdbcTemplate jdbc;
  @Test void deployedAndSameTransactionResources() throws Exception {
-  try(var c=dataSource.getConnection()) { assertEquals("dorm_repair_flowable_a_test_20261123",c.getCatalog()); }
+  try(var c=dataSource.getConnection()) { assertEquals(WorkflowTestTargets.database(),c.getCatalog()); }
   assertEquals(1,repository.createProcessDefinitionQuery().processDefinitionKey("dormRepair").latestVersion().count());
   var config=(SpringProcessEngineConfiguration)engine.getProcessEngineConfiguration();
   assertSame(transactionManager,config.getTransactionManager());

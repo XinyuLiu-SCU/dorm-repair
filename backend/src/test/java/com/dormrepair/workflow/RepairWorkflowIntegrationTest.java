@@ -32,9 +32,10 @@ import static org.mockito.ArgumentMatchers.*;
 @AutoConfigureMockMvc
 @EnabledIfSystemProperty(named="flowable.stageB",matches="true")
 class RepairWorkflowIntegrationTest {
- @DynamicPropertySource static void prepareDatabase(DynamicPropertyRegistry ignored) throws Exception {
-  try(var c=DriverManager.getConnection("jdbc:postgresql://localhost:5432/dorm_repair_flowable_a_test_20261123",System.getenv().getOrDefault("FLOWABLE_TEST_DB_USER","sota"),System.getenv().getOrDefault("FLOWABLE_TEST_DB_PASSWORD",""))) {
-   assertEquals("dorm_repair_flowable_a_test_20261123",c.getCatalog());
+ @DynamicPropertySource static void prepareDatabase(DynamicPropertyRegistry registry) throws Exception {
+  registry.add("spring.datasource.url",WorkflowTestTargets::primaryUrl);
+  try(var c=DriverManager.getConnection(WorkflowTestTargets.primaryUrl(),System.getenv().getOrDefault("FLOWABLE_TEST_DB_USER","sota"),System.getenv().getOrDefault("FLOWABLE_TEST_DB_PASSWORD",""))) {
+   assertEquals(WorkflowTestTargets.database(),c.getCatalog());
    ScriptUtils.executeSqlScript(c,new ClassPathResource("workflow/business-fixture.sql"));
    boolean migrated;
    try(var s=c.createStatement();var r=s.executeQuery("select exists(select 1 from information_schema.columns where table_schema='public' and table_name='repair_order' and column_name='process_instance_id')")){r.next();migrated=r.getBoolean(1);}
