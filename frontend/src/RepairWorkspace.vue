@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import {
   actOnOrder,
   createOrder,
@@ -8,8 +8,10 @@ import {
   live,
   orderWorkflow,
   listRepairers,
+  orderDetail,
+  repairRecords,
+  pendingTasks,
 } from "./orders";
-
 const props = defineProps({ role: { type: String, required: true } });
 const labels = {
   student: "学生工作区",
@@ -46,15 +48,27 @@ const actions = {
     IN_PROGRESS: [["finish", "提交维修结果"]],
   },
 };
-const orders = ref([]);
-const repairers = ref([]);
-const checkingAction = ref(false);
-const identity = ref(props.role === "repairer" ? 2 : 1);
-const loading = ref(false);
-const saving = ref(false);
-const error = ref("");
-const notice = ref("");
-const filter = ref("");
+const orders = ref([]),
+  repairers = ref([]),
+  checkingAction = ref(false),
+  identity = ref(props.role === "repairer" ? 2 : 1),
+  loading = ref(false),
+  saving = ref(false),
+  error = ref(""),
+  notice = ref(""),
+  filter = ref("");
+const page = ref(0),
+  pageSize = ref(20),
+  taskTotal = ref(null),
+  workflows = ref({}),
+  workflowErrors = ref({}),
+  details = reactive({});
+const expandedIds = ref([]);
+const repairerPage = ref(0),
+  repairerTotal = ref(0),
+  repairersLoading = ref(false),
+  repairerPageSize = 20;
+let refreshVersion = 0;
 const form = reactive({ title: "", location: "", description: "" });
 const dialog = reactive({
   open: false,
@@ -64,41 +78,137 @@ const dialog = reactive({
   repairerId: 2,
   description: "",
 });
-
-const scoped = computed(() => {
-  if (live || props.role === "admin") return orders.value;
-  const field = props.role === "student" ? "studentId" : "repairerId";
-  return orders.value.filter(
-    (order) => identity.value && Number(order[field]) === identity.value,
-  );
-});
-const visible = computed(() =>
-  scoped.value.filter(
-    (order) => !filter.value || order.status === filter.value,
-  ),
-);
-const pending = computed(
-  () =>
-    scoped.value.filter((order) => actions[props.role][order.status]?.length)
-      .length,
+const scoped = computed(() => orders.value);
+const visible = computed(() => orders.value);
+const pending = computed(() =>
+  live
+    ? taskTotal.value
+    : orders.value.filter((o) => actions[props.role][o.status]?.length).length,
 );
 const completed = computed(
-  () => scoped.value.filter((order) => order.status === "COMPLETED").length,
+  () => orders.value.filter((o) => o.status === "COMPLETED").length,
 );
-
+function availableActions(order) {
+  const candidates = actions[props.role][order.status] || [];
+  if (!live) return candidates;
+  const allowed = workflows.value[order.id]?.allowedActions || [];
+  return candidates.filter(([key]) =>
+    allowed.includes(key === "rework" ? "accept" : key),
+  );
+}
+async function bounded(items, operation) {
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, items.length) }, async () => {
+      while (cursor < items.length) await operation(items[cursor++]);
+    }),
+  );
+}
 async function refresh() {
+  const version = ++refreshVersion;
   loading.value = true;
   error.value = "";
   try {
-    orders.value = await listOrders();
+    const [rows, tasks] = await Promise.allSettled([
+      listOrders({
+        page: page.value,
+        size: pageSize.value,
+        status: filter.value,
+        role: props.role,
+        identity: identity.value,
+      }),
+      live ? pendingTasks() : Promise.resolve({ total: 0 }),
+    ]);
+    if (version !== refreshVersion) return;
+    if (rows.status === "rejected") throw rows.reason;
+    orders.value = rows.value;
+    taskTotal.value = tasks.status === "fulfilled" ? tasks.value.total : null;
+    if (tasks.status === "rejected")
+      error.value = "待办统计暂不可用：" + errorMessage(tasks.reason);
+    workflows.value = {};
+    workflowErrors.value = {};
+    Object.keys(details).forEach((id) => delete details[id]);
+    expandedIds.value = expandedIds.value.filter((id) =>
+      rows.value.some((order) => order.id === id),
+    );
+    if (live)
+      await bounded(
+        rows.value.filter((o) => actions[props.role][o.status]?.length),
+        async (order) => {
+          try {
+            const flow = await orderWorkflow(order.id);
+            if (version === refreshVersion) workflows.value[order.id] = flow;
+          } catch (failure) {
+            if (version === refreshVersion)
+              workflowErrors.value[order.id] = errorMessage(failure);
+          }
+        },
+      );
+    if (version === refreshVersion)
+      await bounded(
+        rows.value.filter((order) => expandedIds.value.includes(order.id)),
+        (order) => loadDetails(order),
+      );
+  } catch (failure) {
+    if (version === refreshVersion) {
+      orders.value = [];
+      taskTotal.value = null;
+      error.value = errorMessage(failure);
+    }
+  } finally {
+    if (version === refreshVersion) loading.value = false;
+  }
+}
+async function goPage(value) {
+  if (loading.value || saving.value || value < 0) return;
+  page.value = value;
+  await refresh();
+}
+watch([filter, pageSize], () => {
+  page.value = 0;
+  void refresh();
+});
+async function loadDetails(order, recordPage = 0) {
+  const version = refreshVersion;
+  details[order.id] = { ...details[order.id], loading: true, error: "" };
+  try {
+    const [data, workflow, records] = await Promise.all([
+      orderDetail(order.id),
+      orderWorkflow(order.id),
+      repairRecords(order.id, recordPage, 20),
+    ]);
+    if (version !== refreshVersion) return;
+    details[order.id] = { data, workflow, records, loading: false, error: "" };
+    workflows.value[order.id] = workflow;
+  } catch (failure) {
+    if (version !== refreshVersion) return;
+    details[order.id] = {
+      ...details[order.id],
+      loading: false,
+      error: errorMessage(failure),
+    };
+  }
+}
+function expandDetails(order, expanded) {
+  expandedIds.value = expanded.map((item) => item.id);
+  if (expanded.some((item) => item.id === order.id)) void loadDetails(order);
+}
+async function loadRepairers(value = 0) {
+  if (repairersLoading.value || value < 0) return;
+  repairersLoading.value = true;
+  try {
+    const result = await listRepairers(value, repairerPageSize);
+    repairers.value = result.items;
+    repairerTotal.value = result.total;
+    repairerPage.value = value;
   } catch (failure) {
     error.value = errorMessage(failure);
   } finally {
-    loading.value = false;
+    repairersLoading.value = false;
   }
 }
-
 async function mutate(operation, message) {
+  if (saving.value) return false;
   saving.value = true;
   error.value = "";
   notice.value = "";
@@ -108,7 +218,7 @@ async function mutate(operation, message) {
     await refresh();
     return true;
   } catch (failure) {
-    if (failure.response?.status === 409) {
+    if ([403, 404, 409].includes(failure.response?.status)) {
       dialog.open = false;
       await refresh();
     }
@@ -118,81 +228,75 @@ async function mutate(operation, message) {
     saving.value = false;
   }
 }
-
 async function submit() {
+  if (saving.value || loading.value) return;
   const payload = {
     studentId: identity.value,
     title: form.title.trim(),
     location: form.location.trim(),
     description: form.description.trim(),
   };
-  if (
-    !payload.studentId ||
-    !payload.title ||
-    !payload.location ||
-    !payload.description
-  ) {
-    error.value = "请填写学生 ID、报修标题、地点和故障描述。";
+  if (!payload.title || !payload.location || !payload.description) {
+    error.value = "请填写报修标题、地点和故障描述。";
     return;
   }
-  if (await mutate(() => createOrder(payload), "报修已提交")) {
+  if (
+    await mutate(async () => {
+      await createOrder(payload);
+      page.value = 0;
+      filter.value = "";
+    }, "报修已提交")
+  )
     Object.assign(form, { title: "", location: "", description: "" });
-    filter.value = "";
-  }
 }
-
 async function openAction(order, action, label) {
-  if (checkingAction.value) return;
+  if (checkingAction.value || saving.value || loading.value) return;
   checkingAction.value = true;
   error.value = "";
   try {
     if (live) {
-      const workflow = await orderWorkflow(order.id);
+      const flow = await orderWorkflow(order.id);
+      workflows.value[order.id] = flow;
       if (
-        !workflow.allowedActions.includes(
-          action === "rework" ? "accept" : action,
-        )
+        !flow.allowedActions.includes(action === "rework" ? "accept" : action)
       ) {
         await refresh();
-        error.value = "当前流程不允许此操作，工单已刷新。";
+        error.value = "当前流程不允许此操作，请使用刷新后的工单。";
         return;
       }
-      if (action === "assign") repairers.value = await listRepairers();
+      if (action === "assign") await loadRepairers(0);
     }
+    Object.assign(dialog, {
+      open: true,
+      order,
+      action,
+      label,
+      repairerId: live ? undefined : (order.repairerId ?? 2),
+      description: "",
+    });
   } catch (failure) {
     error.value = errorMessage(failure);
-    return;
   } finally {
     checkingAction.value = false;
   }
-  Object.assign(dialog, {
-    open: true,
-    order,
-    action,
-    label,
-    repairerId: live ? undefined : (order.repairerId ?? 2),
-    description: "",
-  });
-  error.value = "";
 }
-
 async function confirmAction() {
+  if (saving.value || repairersLoading.value || !dialog.order) return;
   const { order, action, description, repairerId } = dialog;
   if (
     (action === "assign" && !repairerId) ||
     (action === "finish" && !description.trim())
   ) {
-    error.value = "请填写维修人员 ID 或维修结果。";
+    error.value = action === "assign" ? "请选择维修人员。" : "请填写维修结果。";
     return;
   }
   let payload;
   if (action === "assign") payload = { repairerId };
-  if (action === "start" || action === "finish")
-    payload = { repairerId: identity.value };
-  if (action === "finish") payload.description = description.trim();
-  if (live && action === "start") payload = undefined;
-  if (live && action === "finish")
-    payload = { description: description.trim() };
+  if (action === "finish")
+    payload = live
+      ? { description: description.trim() }
+      : { repairerId: identity.value, description: description.trim() };
+  if (action === "start" && !live) payload = { repairerId: identity.value };
   if (action === "accept" || action === "rework")
     payload = live
       ? { approved: action === "accept" }
@@ -216,13 +320,13 @@ onMounted(refresh);
   </header>
   <section class="metrics" aria-label="工单统计">
     <div>
-      <span>全部工单</span><strong>{{ scoped.length }}</strong>
+      <span>本页工单</span><strong>{{ scoped.length }}</strong>
     </div>
     <div>
-      <span>当前待处理</span><strong>{{ pending }}</strong>
+      <span>当前待处理</span><strong>{{ pending ?? "—" }}</strong>
     </div>
     <div>
-      <span>已完成</span><strong>{{ completed }}</strong>
+      <span>本页已完成</span><strong>{{ completed }}</strong>
     </div>
   </section>
 
@@ -254,13 +358,13 @@ onMounted(refresh);
         <el-form-item label="报修标题"
           ><el-input
             v-model="form.title"
-            maxlength="80"
+            maxlength="100"
             placeholder="例如：水龙头漏水"
         /></el-form-item>
         <el-form-item label="宿舍地点"
           ><el-input
             v-model="form.location"
-            maxlength="100"
+            maxlength="200"
             placeholder="楼栋和房间号"
         /></el-form-item>
       </div>
@@ -271,7 +375,11 @@ onMounted(refresh);
           maxlength="500"
           :rows="3"
       /></el-form-item>
-      <el-button type="primary" native-type="submit" :loading="saving"
+      <el-button
+        type="primary"
+        native-type="submit"
+        :loading="saving"
+        :disabled="loading"
         >提交报修</el-button
       >
     </el-form>
@@ -286,6 +394,7 @@ onMounted(refresh);
           clearable
           placeholder="所有状态"
           aria-label="筛选工单状态"
+          :disabled="loading || saving"
         >
           <el-option
             v-for="(name, value) in statuses"
@@ -301,13 +410,87 @@ onMounted(refresh);
       v-loading="loading"
       :data="visible"
       row-key="id"
+      @expand-change="expandDetails"
       empty-text="暂无符合条件的工单"
     >
       <el-table-column type="expand">
         <template #default="{ row }">
-          <div class="details">
-            <p>{{ row.description || "暂无故障描述" }}</p>
-            <p v-if="row.repairResult">维修结果：{{ row.repairResult }}</p>
+          <div class="details" v-loading="details[row.id]?.loading">
+            <el-alert
+              v-if="details[row.id]?.error"
+              :title="details[row.id].error"
+              type="error"
+              :closable="false"
+            />
+            <template v-else-if="details[row.id]?.data">
+              <h3>工单详情</h3>
+              <p>{{ details[row.id].data.description || "暂无故障描述" }}</p>
+              <p>地点：{{ details[row.id].data.location }}</p>
+              <p>
+                流程模式：{{
+                  details[row.id].workflow.mode === "LEGACY"
+                    ? "LEGACY 历史工单（无流程实例）"
+                    : "FLOWABLE"
+                }}
+              </p>
+              <p>
+                当前节点：{{
+                  details[row.id].workflow.currentTask?.name ||
+                  (details[row.id].workflow.mode === "LEGACY"
+                    ? "历史业务状态：" + statuses[row.status]
+                    : "无当前任务")
+                }}
+              </p>
+              <p>
+                {{
+                  details[row.id].workflow.ended ? "流程已结束" : "流程处理中"
+                }}
+              </p>
+              <h3>维修记录（{{ details[row.id].records.total }} 条）</h3>
+              <p v-if="!details[row.id].records.items.length">暂无维修记录</p>
+              <div
+                v-for="(record, index) in details[row.id].records.items"
+                :key="record.id"
+              >
+                <p>
+                  <strong
+                    >第
+                    {{
+                      details[row.id].records.page *
+                        details[row.id].records.size +
+                      index +
+                      1
+                    }}
+                    次维修</strong
+                  >
+                  · 维修人员 {{ record.repairer_id }} · {{ record.created_at }}
+                </p>
+                <p>{{ record.description }}</p>
+              </div>
+              <div class="controls">
+                <el-button
+                  size="small"
+                  :disabled="
+                    details[row.id].loading ||
+                    details[row.id].records.page === 0
+                  "
+                  @click="loadDetails(row, details[row.id].records.page - 1)"
+                  >上一页记录</el-button
+                >
+                <el-button
+                  size="small"
+                  :disabled="
+                    details[row.id].loading ||
+                    (details[row.id].records.page + 1) *
+                      details[row.id].records.size >=
+                      details[row.id].records.total
+                  "
+                  @click="loadDetails(row, details[row.id].records.page + 1)"
+                  >下一页记录</el-button
+                >
+              </div>
+            </template>
+            <p v-else>正在加载工单详情…</p>
           </div>
         </template>
       </el-table-column>
@@ -331,17 +514,48 @@ onMounted(refresh);
       <el-table-column label="操作" min-width="170">
         <template #default="{ row }">
           <el-button
-            v-for="[key, label] in actions[role][row.status] || []"
+            v-for="[key, label] in availableActions(row)"
             :key="key"
             link
             type="primary"
-            :disabled="saving"
+            :disabled="saving || loading || checkingAction"
             @click="openAction(row, key, label)"
             >{{ label }}</el-button
+          >
+          <span
+            v-if="live && workflowErrors[row.id]"
+            :title="workflowErrors[row.id]"
+            >操作权限暂不可用，请刷新</span
           >
         </template>
       </el-table-column>
     </el-table>
+    <div class="controls" style="margin-top: 16px">
+      <el-button
+        :disabled="loading || saving || page === 0"
+        @click="goPage(page - 1)"
+        >上一页工单</el-button
+      >
+      <span>第 {{ page + 1 }} 页（每页 {{ pageSize }} 条）</span>
+      <el-button
+        :disabled="loading || saving || orders.length < pageSize"
+        @click="goPage(page + 1)"
+        >下一页工单</el-button
+      >
+      <el-select
+        v-model="pageSize"
+        aria-label="每页工单数量"
+        :disabled="loading || saving"
+        style="width: 110px"
+      >
+        <el-option
+          v-for="size in [20, 50, 100]"
+          :key="size"
+          :label="size + '条/页'"
+          :value="size"
+        />
+      </el-select>
+    </div>
   </section>
 
   <el-dialog
@@ -366,6 +580,8 @@ onMounted(refresh);
           v-else
           v-model="dialog.repairerId"
           placeholder="选择维修人员"
+          :loading="repairersLoading"
+          :disabled="repairersLoading || saving"
         >
           <el-option
             v-for="person in repairers"
@@ -374,6 +590,42 @@ onMounted(refresh);
             :label="person.real_name || person.username"
           />
         </el-select>
+        <div v-if="live" class="controls" style="margin-top: 8px">
+          <el-button
+            size="small"
+            :disabled="repairersLoading || saving || repairerPage === 0"
+            @click="loadRepairers(repairerPage - 1)"
+            >上一页人员</el-button
+          >
+          <span
+            >第 {{ repairerPage + 1 }} 页 / 共
+            {{ Math.max(1, Math.ceil(repairerTotal / repairerPageSize)) }}
+            页</span
+          >
+          <el-button
+            size="small"
+            :disabled="
+              repairersLoading ||
+              saving ||
+              (repairerPage + 1) * repairerPageSize >= repairerTotal
+            "
+            @click="loadRepairers(repairerPage + 1)"
+            >下一页人员</el-button
+          >
+          <el-button
+            size="small"
+            :disabled="repairersLoading || saving || repairerTotal === 0"
+            @click="
+              loadRepairers(
+                Math.max(0, Math.ceil(repairerTotal / repairerPageSize) - 1),
+              )
+            "
+            >末页人员</el-button
+          >
+          <span v-if="!repairersLoading && repairerTotal === 0"
+            >暂无可用维修人员</span
+          >
+        </div>
       </el-form-item>
       <el-form-item v-if="dialog.action === 'finish'" label="维修结果"
         ><el-input
@@ -386,7 +638,11 @@ onMounted(refresh);
     <template #footer
       ><el-button :disabled="saving" @click="dialog.open = false"
         >取消</el-button
-      ><el-button type="primary" :loading="saving" @click="confirmAction"
+      ><el-button
+        type="primary"
+        :loading="saving"
+        :disabled="repairersLoading || loading"
+        @click="confirmAction"
         >确认</el-button
       ></template
     >

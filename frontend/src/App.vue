@@ -62,6 +62,9 @@ aside {
   font-weight: 700;
   margin: 0 10px 34px;
 }
+aside p {
+  overflow-wrap: anywhere;
+}
 nav {
   display: grid;
   gap: 8px;
