@@ -4,35 +4,35 @@
     "artifact": "flowable-engine-common:7.2.0",
     "resource": "org/flowable/common/db/create/flowable.postgres.create.common.sql",
     "originalSha256": "96295e87da462b0eb69aa480279effcf9b4805e14b0e1614fe0d2541a62d6f58",
-    "packagedSha256": "9a8702f96471836d96a65a8b8dc7a9832fa5a8864f22946eb9c8c888a4caad1a"
+    "packagedSha256": "606a31c4f17f5dea75d9a323511ec558d38d4e787b2d25e603618102335299dc"
   },
   {
     "file": "020-engine.sql",
     "artifact": "flowable-engine:7.2.0",
     "resource": "org/flowable/db/create/flowable.postgres.create.engine.sql",
     "originalSha256": "d61ae68dfc05dca23072ec8c727355f446725ca530a63ac57e3deb053a4457f1",
-    "packagedSha256": "702a7e1f6c49eba7710a4c252505362be9ae0639246c9fe300da4de87a2840ac"
+    "packagedSha256": "f720c3aeaa7ad8f819460cdae5fe061622c0c9a78ef6ac0867f76faaf20c8426"
   },
   {
     "file": "030-history.sql",
     "artifact": "flowable-engine:7.2.0",
     "resource": "org/flowable/db/create/flowable.postgres.create.history.sql",
     "originalSha256": "d84f4196273137f29d5f49c818cfcb3f6643104d9df491c46a6c1a42701649b7",
-    "packagedSha256": "45e8b927f1ec75f890427182e69b17623989c2e7b198dc0fe6e90be45514ab64"
+    "packagedSha256": "366311640b778ce0505e52323d1ac8333c5fe5b4d581e0fa95e904da8859b151"
   },
   {
     "file": "040-business-association.sql",
     "source": "project migration candidate",
-    "packagedSha256": "238316d7eee40b8358da161e4e235b8cce865fa32261be3d4aabcb009078a16d"
+    "packagedSha256": "fe766bc578b617ff7ae0c31eea16072cb5c458c1d271c02d43e42d9b49820987"
   },
   {
     "file": "apply.sql",
     "source": "project migration candidate",
-    "packagedSha256": "2ebab401bd7ba99081d8d12650cf9f96704a63669743e944349d7998fe38c266"
+    "packagedSha256": "88a6745a06e7bbb4f5a8a995c6304d1965d0b756f8fe52bb394dbd57210691bd"
   },
   {
     "file": "verify.sql",
     "source": "project migration candidate",
-    "packagedSha256": "c55d86237f4c5c957d211d41b1037c3918bf34b92c7c046508487393880c0b06"
+    "packagedSha256": "d553bdb12b5809ace202645927a6705b78d658db487eb226ecbd5549e6962174"
   }
 ]

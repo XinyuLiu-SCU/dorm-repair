@@ -1,17 +1,19 @@
+> V1.1归档后的目录：backend/、frontend/。当前克隆与初始化请先读根README.md；以下后端命令从backend目录执行。
+
 # 宿舍报修管理系统：Vue 前端对接说明
 
 版本：阶段 D，2026-11-23。后端：Spring Boot 3.5.16 / Java 21 / PostgreSQL / JWT / Flowable 7.2.0。
 
 ## 1. 本地启动与环境隔离
 
-后端根目录：`D:\dorm-repair\dorm-repair-backend`。
+后端根目录：`<仓库根目录>\backend`。
 
 默认配置指向 `dorm_repair_db:8080`，该正式库尚未迁移，工作流写入和查询返回 503；不要拿默认环境演示完整流程。
 
 前端联调使用已准备好的隔离库 `dorm_repair_flowable_a_test_20261123`，地址 `http://127.0.0.1:18080`。在 PowerShell 中执行：
 
 ```powershell
-cd D:\dorm-repair\dorm-repair-backend
+cd backend
 $env:INTEGRATION_JWT_SECRET = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 # 数据库要求密码时，另设 INTEGRATION_DB_PASSWORD；不要在聊天或仓库保存实际值。
 mvn spring-boot:run "-Dspring-boot.run.profiles=integration"
@@ -303,4 +305,4 @@ mvn -B test "-Dflowable.stageA=true" "-Dflowable.stageB=true" "-Dflowable.stageC
 仍需Vue联调：路由守卫、表单提示、页面刷新、Token过期跳转、浏览器CORS/代理、中文和时间显示。正式库尚未迁移，完整正式环境流程未执行。复杂统计、上传、通知、复杂轨迹和分页性能压测不在本阶段范围。
 
 
-最终验收记录：完整回归65项通过（含复用场景的不同执行环境），阶段D查询套件20项/379次HTTP，阶段C套件14项/216次HTTP，另联调profile真实HTTP冒烟1次。迁移仅在独立演练库执行，正式库保持不变。测试报告为FLOWABLE-STAGE-D.txt。
+最终验收记录：完整回归65项通过（含复用场景的不同执行环境），阶段D查询套件20项/379次HTTP，阶段C套件14项/216次HTTP，另联调profile真实HTTP冒烟1次。迁移仅在独立演练库执行，正式库保持不变。测试报告为docs/v1.1/FLOWABLE-STAGE-D.txt。

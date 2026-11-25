@@ -1,0 +1,5 @@
+*.sql text eol=lf
+*.json text eol=lf
+*.png binary
+*.jpg binary
+*.md text eol=lf

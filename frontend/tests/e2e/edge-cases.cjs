@@ -1,7 +1,7 @@
 const {chromium}=require('../../work/browser-tests/node_modules/playwright');const fs=require('node:fs');const path=require('node:path');const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../..'),dir=path.join(root,'artifacts/v1.1/edge-cases');fs.mkdirSync(dir,{recursive:true});
-const accounts=JSON.parse(fs.readFileSync(process.env.V11_DEMO_ACCOUNTS_FILE || 'D:/dorm-repair/dorm-repair-backend/.env.frontend-demo.json','utf8')).accounts;
-const fixtures=JSON.parse(fs.readFileSync(process.env.V11_FIXTURE_ACCOUNTS_FILE || 'D:/dorm-repair/dorm-repair-backend/.env.v11-browser-fixtures.json','utf8'));
+const accounts=JSON.parse(fs.readFileSync(process.env.V11_DEMO_ACCOUNTS_FILE || path.resolve(__dirname, "../../../.env.frontend-demo.json"),'utf8')).accounts;
+const fixtures=JSON.parse(fs.readFileSync(process.env.V11_FIXTURE_ACCOUNTS_FILE || path.resolve(__dirname, "../../../.env.v11-browser-fixtures.json"),'utf8'));
 const flow=JSON.parse(fs.readFileSync(path.join(root,'artifacts/v1.1/after/results.json'),'utf8'));const results=[];let browser;
 const row=(p,title)=>p.locator('tr.el-table__row').filter({hasText:title}).first();
 async function ready(p){await p.waitForFunction(()=>Array.from(document.querySelectorAll('.el-table .el-loading-mask')).every(e=>getComputedStyle(e).display==='none'||e.getClientRects().length===0));}

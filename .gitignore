@@ -83,3 +83,14 @@ tmp/
 coverage/
 Thumbs.db
 Desktop.ini
+
+# Monorepo private runtime files and browser evidence
+**/node_modules/
+**/dist/
+**/artifacts/
+**/.env.local
+**/.env.*.local
+*.har
+*.trace.zip
+playwright-report/
+test-results/
