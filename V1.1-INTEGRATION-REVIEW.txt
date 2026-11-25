@@ -1,0 +1,86 @@
+V1.1 前后端联调检查报告
+日期：2026-11-25
+
+一、Git与目录
+远程：https://github.com/XinyuLiu-SCU/dorm-repair
+master：ff78d7730e0851cabdc683136a2ba0f3adea937c，后端稳定版本。
+feature/vue-frontend：3a67637c71b51acd560d76bbdbdcc2ff136f27f8，前端最新上传；上一提交762c80e；共同基线ff78d77。
+远程目录：后端pom.xml/src/deployment/文档在仓库根目录，Vue在frontend/，还没有backend/子目录。
+原后端目录D:\dorm-repair\dorm-repair-backend，保持master和原有未提交修改。
+前端独立工作树D:\dorm-repair\dorm-repair-frontend-v1.1，分支integration/v1.1-review跟踪远程feature/vue-frontend。
+实际Vue根目录D:\dorm-repair\dorm-repair-frontend-v1.1\frontend。
+这是隔离审查工作树，不是将远程分支强行合并到后端。前端工作树根目录也有基线后端副本，请勿从那里启动旧后端覆盖本地CORS修复。
+原本地修改SecurityConfig.java、AuthorizationTest.java和未跟踪FRONTEND-SETUP.md均保留。敏感.env.frontend-demo.json仍在原后端、仍被忽略，未复制到Vue或加入Git。
+本轮只fetch和创建本地工作树，没有合并、强制操作、提交或推送。
+
+二、前端结构与功能
+Vue3+Vue Router+Axios+Element Plus，Vite7.3.8；Node24.16.0/npm11.13.0在本机可安装构建。
+main.js：Hash路由，/login、/student、/admin、/repairer；真实模式按/api/auth/me身份守卫，不允许任意切换角色页面。
+LoginView.vue：真实登录、保存accessToken、查询me、清空密码、处理登录错误。
+session.js/App.vue：sessionStorage保存Token，显示用户名，登出清理Token及跳转登录。
+RepairWorkspace.vue：学生提交、工单列表、状态筛选、管理员审核/驳回/派单、维修开始/提交结果、学生验收/返工；刷新、操作弹窗、基础提示和统计。
+orders.js：Axios统一/api和Bearer请求头，真实/模拟模式；真实列表与维修人员分页拉取；操作前查allowedActions。
+八种工单状态均与后端一致；rework前端操作映射为accept(false)，不误调/rework旧接口。
+
+三、契约核对
+已匹配：POST/auth/login、GET/auth/me、GET/POST/repair-orders、approve/reject/assign/start/finish/accept、GET/{id}/workflow、GET/users/repairers。
+登录返回accessToken、角色大写转小写路由、Bearer、工单列表数组、维修人员items/total、allowedActions格式均匹配。
+live模式创建仅发送title/location/description，开始不发送伪造ID，finish仅description，accept仅approved。管理员派单repairerId是目标人员，符合契约。
+401有全局清除登录及跳转；409关闭弹窗并刷新列表；其他错误有通用message提示。
+
+四、发现的问题/未接入功能（本轮未改页面）
+P0 配置：VITE_DATA_MODE只有严格等于live才真实请求。默认没有.env.local时会落入localStorage模拟模式，能切角色，不代表真实权限或后端验证。本轮已在被忽略的.env.local启用live。
+P1 维修结果：RepairWorkspace.vue:310显示row.repairResult，但该字段只在orders.js:93模拟流程写入。真实后端列表不返回此字段，维修结果在GET/{id}/records。前端未调用records，真实维修结果/多次返工记录尚未展示。
+P1 待办口径：RepairWorkspace.vue:80按角色+状态推算pending，未调用GET/api/workflow/tasks。它不是引擎真实待办，在流程挂起、任务归属异常等情况会与后端不同。
+P1 操作按钮：RepairWorkspace.vue:334按静态状态表显示；只有点击时:150才查allowedActions。安全上后端仍拦截，但可能出现按钮可见而点击被拒绝，建议确认后按后端动作统一可用性。
+P1 查询未展示：GET/{id}详情、GET/{id}/records、当前节点/结束标记/LEGACY模式尚无独立展示；当前展开区域只使用列表description和模拟repairResult。
+P2 分页：orders.js:49、109循环取完全部页再本地筛选/渲染，无页面分页控件或总量展示；格式匹配，但大数据量下耗时和内存增加。建议先功能闭环，再决定是否接服务端筛选分页。
+P2 字段命名：模拟数据studentId/repairerId，真实数据student_id/repairer_id；live模式绕过本地ID过滤，当前列表核心字段可正常用，但后续身份/详情展示需明确转换。
+P2 输入范围：前端标题80、地点100、描述/维修说明500；后端标题100、地点200，描述未设同样500限制。前端更严格，不会导致现有提交失败，但需双方确认统一范围。
+P2 提示：403/404/503主要显示通用后端message，未形成各状态的专门交互；状态筛选和待办统计仅在当前拉取结果上计算。
+P2 默认模拟模式、README演示说明容易使验收误判；后续可强化真实/演示模式辨识，但本轮不改视觉设计。
+没有发现live模式硬编码可登录的账号/密码；1/2等ID属于模拟状态默认值，真实请求封装已剔除操作人字段。不要将模拟角色切换当成JWT权限测试。
+
+五、实际安装、构建与启动
+npm ci --no-audit --no-fund：前端目录内成功安装177包，沿用package-lock，无自动升级。
+第一次误在仓库根目录执行npm ci因没有根package-lock失败；进入frontend后成功，未重建锁文件。
+npm run lint：通过。
+npm run build：通过；生成包JS约1.1MB，提示单chunk超过500kB，属于非阻断性能提示。
+npm audit：0 info/low/moderate/high/critical（本次registry检查结果，不代表永久无风险）。安装时提示eslint9.39.5停止维护，本轮未升级。
+本地配置：frontend/.env.local复制.env.example，VITE_DATA_MODE=live，VITE_BACKEND_URL=http://127.0.0.1:18080。该配置被忽略。
+Vue进程26852：node Vite，127.0.0.1:5173，命令行strictPort避免自动换端口。
+后端现有integration进程38952：127.0.0.1:18080，隔离库dorm_repair_flowable_a_test_20261123，保留本地CORS修复。
+检查中尝试重复启动的后端进程52552因18080已占用退出，未成功替换原实例；已确认实际使用现有38952进程，不是把失败启动当成功。
+原8080进程39932仍运行，未停止、替换或占用。
+
+访问：
+Vue登录 http://127.0.0.1:5173/#/login
+后端 http://127.0.0.1:18080
+均仅绑定本机。没有开放局域网或修改防火墙。
+前端日志在原后端target/v11-frontend.log，错误日志target/v11-frontend-error.log；进程ID target/v11-frontend.pid。
+重复后端启动诊断日志target/v11-backend.log；当前正常后端原日志target/frontend-integration.log。
+不要用重复启动失败日志判断原服务不可用，可用实际接口验证。
+
+六、实际HTTP验证
+Vue首页200且返回/src/main.js入口；Vite转换模块确认VITE_DATA_MODE=live。
+经5173/api代理执行15项检查全部通过：三角色分别登录/me/列表（9），无Token401，学生创建，管理员查workflow/allowedActions，管理员维修人员列表/待办，学生越权审核403。
+携带真实浏览器Origin=http://127.0.0.1:5173和Bearer验证，Token仅保存在验证脚本内存，没有输出到日志或报告。
+新增隔离工单208，PENDING，供后续页面验收；没有操作历史正式工单。
+没有执行浏览器逐按钮/跨角色全流程点击测试，不把HTTP代理验证称为UI端到端验收。
+本轮没有重跑后端全部65项，也没有修改后端业务源码；此前验证结果仍仅代表对应运行。
+
+七、安全和正式库保护
+原后端密码文件及全部忽略配置未被覆盖，前端仅放公开后端地址和live标记，未注入数据库密码/JWT签名密钥。
+远程新增frontend16个文件扫描未发现真实JWT、私钥或完整BCrypt哈希字面量；未发现硬编码真实登录凭据。静态扫描不是绝对无泄露保证。
+正式库仅只读核验，sys_user/repair_order/repair_record全部行摘要与此前基线完全相同；1=REJECTED、2/3=COMPLETED保持原样。
+没有正式DDL/DML，没有修改正式开关/密钥或进行迁移。
+
+八、建议下一步修复顺序（需确认后实施）
+1 以live模式验证当前角色页面操作，先完成学生提交到验收、驳回、两次返工的浏览器实际闭环；记录UI错误再修。
+2 接records展示真实维修结果和返工记录，不再依赖repairResult模拟字段；接入详情及workflow模式/结束标记。
+3 待办使用/api/workflow/tasks，操作权限以allowedActions为准，统一按钮和统计口径。
+4 统一字段转换、输入上限及403/404/503提示；保留现有布局与视觉设计。
+5 确认数据量后再做列表分页与chunk拆分、ESLint维护，不在本轮升级或大改。
+6 本地CORS修复需用户确认后再提交/推送；没有自动把后端改动合到前端分支，也没有自动发布V1.1标签。
+
+本轮完成检查和启动即停止，不推送、不开始V2.0。

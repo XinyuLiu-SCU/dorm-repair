@@ -56,4 +56,10 @@ class AuthorizationTest {
   mvc.perform(post("/api/auth/login").contentType("application/json").content("{\"username\":\"missing\",\"password\":\"wrong\"}")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(401));
   mvc.perform(post("/api/auth/login").contentType("application/json").content("{}")).andExpect(status().isBadRequest());
  }
+ @Test void browserCorsPreflight() throws Exception {
+  mvc.perform(options("/api/auth/login").header("Origin","http://localhost:5173").header("Access-Control-Request-Method","POST").header("Access-Control-Request-Headers","authorization,content-type"))
+   .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin","http://localhost:5173"));
+  mvc.perform(options("/api/auth/login").header("Origin","https://unapproved.example").header("Access-Control-Request-Method","POST"))
+   .andExpect(status().isForbidden());
+ }
 }

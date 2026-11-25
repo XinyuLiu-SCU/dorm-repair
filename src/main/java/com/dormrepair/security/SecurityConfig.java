@@ -47,7 +47,7 @@ public class SecurityConfig {
  private static void error(jakarta.servlet.http.HttpServletResponse r,int code) throws java.io.IOException {
   r.setStatus(code); r.setContentType("application/json;charset=UTF-8"); r.getWriter().write("{\"code\":"+code+",\"message\":\""+(code==401?"Unauthorized":"Forbidden")+"\"}");
  }
- @Bean CorsConfigurationSource cors(@Value("${app.cors.origins}") List<String> origins) {
+ @Bean CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.origins}") List<String> origins) {
   var c=new CorsConfiguration(); c.setAllowedOrigins(origins); c.setAllowedMethods(List.of("GET","POST","OPTIONS")); c.setAllowedHeaders(List.of("Authorization","Content-Type"));
   var source=new UrlBasedCorsConfigurationSource(); source.registerCorsConfiguration("/api/**",c); return source;
  }
