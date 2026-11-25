@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" id="complaintCaseV2Definitions" targetNamespace="https://dormrepair.example/design-r2">
+  <process id="complaintCaseV2" name="投诉处理（R2不可执行评审）" isExecutable="false">
+    <documentation>DESIGN ONLY. No deployment. Delegate beans, actor/permission mapping, transaction logic and correlation are not implemented. Each collapsed scope has its own editable BPMNPlane.</documentation>
+    <startEvent id="complaintStart" name="本人提交投诉">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </startEvent>
+    <userTask id="investigateComplaint" name="授权管理员调查">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <userTask id="decideComplaint" name="记录处置结果">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <serviceTask id="archiveComplaint" name="归档但不代验收" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <endEvent id="complaintEnd" name="投诉闭环">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <callActivity id="callServiceFollowup" name="独立回访流程" calledElement="${followupDefinitionId}" flowable:calledElementType="id" flowable:useLocalScopeForOutParameters="true">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <extensionElements>
+        <flowable:in source="complaintId" target="complaintId" />
+        <flowable:in source="orderId" target="orderId" />
+        <flowable:in source="followupId" target="followupId" />
+        <flowable:out source="followupOutcome" target="complaintFollowupOutcome" />
+      </extensionElements>
+    </callActivity>
+    <sequenceFlow id="complaintCaseV2_f1" sourceRef="complaintStart" targetRef="investigateComplaint" />
+    <sequenceFlow id="complaintCaseV2_f2" sourceRef="investigateComplaint" targetRef="decideComplaint" />
+    <sequenceFlow id="complaintCaseV2_f3" sourceRef="decideComplaint" targetRef="callServiceFollowup" />
+    <sequenceFlow id="complaintCaseV2_f4" sourceRef="callServiceFollowup" targetRef="archiveComplaint" />
+    <sequenceFlow id="complaintCaseV2_f5" sourceRef="archiveComplaint" targetRef="complaintEnd" />
+  </process>
+  <bpmndi:BPMNDiagram id="complaintCaseV2_diagram">
+    <bpmndi:BPMNPlane id="complaintCaseV2_plane" bpmnElement="complaintCaseV2">
+      <bpmndi:BPMNShape id="complaintStart_di" bpmnElement="complaintStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="investigateComplaint_di" bpmnElement="investigateComplaint">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="decideComplaint_di" bpmnElement="decideComplaint">
+        <dc:Bounds x="720" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="archiveComplaint_di" bpmnElement="archiveComplaint">
+        <dc:Bounds x="1360" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="complaintEnd_di" bpmnElement="complaintEnd">
+        <dc:Bounds x="1680" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="callServiceFollowup_di" bpmnElement="callServiceFollowup">
+        <dc:Bounds x="1040" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="complaintCaseV2_f1_di" bpmnElement="complaintCaseV2_f1">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="complaintCaseV2_f2_di" bpmnElement="complaintCaseV2_f2">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="complaintCaseV2_f3_di" bpmnElement="complaintCaseV2_f3">
+        <di:waypoint x="880" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="complaintCaseV2_f4_di" bpmnElement="complaintCaseV2_f4">
+        <di:waypoint x="1200" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="complaintCaseV2_f5_di" bpmnElement="complaintCaseV2_f5">
+        <di:waypoint x="1520" y="120" />
+        <di:waypoint x="1640" y="120" />
+        <di:waypoint x="1640" y="100" />
+        <di:waypoint x="1680" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

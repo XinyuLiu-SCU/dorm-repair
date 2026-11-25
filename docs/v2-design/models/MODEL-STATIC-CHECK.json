@@ -1,0 +1,128 @@
+{
+  "scope": "XML and DI geometry only, no deployment or runtime tests",
+  "models": [
+    {
+      "file": "dormRepairV2-candidate.bpmn20.xml",
+      "process": "dormRepairV2",
+      "nodes": 85,
+      "flows": 89,
+      "diagrams": [
+        {
+          "scope": "dormRepairV2",
+          "nodes": 22,
+          "flows": 23,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "reviewScope",
+          "nodes": 6,
+          "flows": 6,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "workCycle",
+          "nodes": 19,
+          "flows": 20,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "publicLinkedScope",
+          "nodes": 11,
+          "flows": 10,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "preparationScope",
+          "nodes": 11,
+          "flows": 13,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "repairExceptionHandling",
+          "nodes": 9,
+          "flows": 9,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "appointmentNegotiation",
+          "nodes": 7,
+          "flows": 8,
+          "lineNodeCollisions": 0
+        }
+      ],
+      "executable": false
+    },
+    {
+      "file": "materialRequestV2-candidate.bpmn20.xml",
+      "process": "materialRequestV2",
+      "nodes": 19,
+      "flows": 18,
+      "diagrams": [
+        {
+          "scope": "materialRequestV2",
+          "nodes": 9,
+          "flows": 8,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "materialRequestScope",
+          "nodes": 10,
+          "flows": 10,
+          "lineNodeCollisions": 0
+        }
+      ],
+      "executable": false
+    },
+    {
+      "file": "inspectionPlanV2-candidate.bpmn20.xml",
+      "process": "inspectionPlanV2",
+      "nodes": 11,
+      "flows": 11,
+      "diagrams": [
+        {
+          "scope": "inspectionPlanV2",
+          "nodes": 6,
+          "flows": 6,
+          "lineNodeCollisions": 0
+        },
+        {
+          "scope": "inspectionUnit",
+          "nodes": 5,
+          "flows": 5,
+          "lineNodeCollisions": 0
+        }
+      ],
+      "executable": false
+    },
+    {
+      "file": "complaintCaseV2-candidate.bpmn20.xml",
+      "process": "complaintCaseV2",
+      "nodes": 6,
+      "flows": 5,
+      "diagrams": [
+        {
+          "scope": "complaintCaseV2",
+          "nodes": 6,
+          "flows": 5,
+          "lineNodeCollisions": 0
+        }
+      ],
+      "executable": false
+    },
+    {
+      "file": "serviceFollowupV2-candidate.bpmn20.xml",
+      "process": "serviceFollowupV2",
+      "nodes": 6,
+      "flows": 6,
+      "diagrams": [
+        {
+          "scope": "serviceFollowupV2",
+          "nodes": 6,
+          "flows": 6,
+          "lineNodeCollisions": 0
+        }
+      ],
+      "executable": false
+    }
+  ]
+}

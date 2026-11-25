@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='utf-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="inspectionPlanV2Definitions" targetNamespace="https://dormrepair.example/design-r2">
+  <process id="inspectionPlanV2" name="主动巡检定时与多实例扩展（R2不可执行评审）" isExecutable="false">
+    <documentation>DESIGN ONLY. No deployment. Delegate beans, actor/permission mapping, transaction logic and correlation are not implemented. Each collapsed scope has its own editable BPMNPlane.</documentation>
+    <startEvent id="inspectionTimerStart" name="受控每日调度候选">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <timerEventDefinition>
+        <timeCycle>R/PT24H</timeCycle>
+      </timerEventDefinition>
+    </startEvent>
+    <serviceTask id="snapshotInspectionBatch" name="唯一计划周期与有界目标快照" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <exclusiveGateway id="inspectionTargetsRoute" name="目标集合非空">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <subProcess id="inspectionUnit" name="每目标多实例巡检">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <multiInstanceLoopCharacteristics isSequential="false" flowable:collection="inspectionTargets" flowable:elementVariable="inspectionTarget" />
+      <startEvent id="unitStart" name="当前目标">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </startEvent>
+      <userTask id="performInspection" name="分配人员实际检查">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="inspectionFindingRoute" name="存在异常">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <serviceTask id="queueFindingConversion" name="幂等Outbox转维修意图" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <endEvent id="unitEnd" name="该目标巡检结束">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <sequenceFlow id="inspectionPlanV2_f7" sourceRef="unitStart" targetRef="performInspection" />
+      <sequenceFlow id="inspectionPlanV2_f8" sourceRef="performInspection" targetRef="inspectionFindingRoute" />
+      <sequenceFlow id="inspectionPlanV2_f9" sourceRef="inspectionFindingRoute" targetRef="unitEnd">
+        <conditionExpression xsi:type="tFormalExpression">${hasFinding == false}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="inspectionPlanV2_f10" sourceRef="inspectionFindingRoute" targetRef="queueFindingConversion">
+        <conditionExpression xsi:type="tFormalExpression">${hasFinding == true}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="inspectionPlanV2_f11" sourceRef="queueFindingConversion" targetRef="unitEnd" />
+    </subProcess>
+    <serviceTask id="summarizeInspection" name="批次汇总" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <endEvent id="inspectionEnd" name="批次结束">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <sequenceFlow id="inspectionPlanV2_f1" sourceRef="inspectionTimerStart" targetRef="snapshotInspectionBatch" />
+    <sequenceFlow id="inspectionPlanV2_f2" sourceRef="snapshotInspectionBatch" targetRef="inspectionTargetsRoute" />
+    <sequenceFlow id="inspectionPlanV2_f3" sourceRef="inspectionTargetsRoute" targetRef="inspectionUnit">
+      <conditionExpression xsi:type="tFormalExpression">${inspectionHasTargets == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="inspectionPlanV2_f4" sourceRef="inspectionTargetsRoute" targetRef="summarizeInspection">
+      <conditionExpression xsi:type="tFormalExpression">${inspectionHasTargets == false}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="inspectionPlanV2_f5" sourceRef="inspectionUnit" targetRef="summarizeInspection" />
+    <sequenceFlow id="inspectionPlanV2_f6" sourceRef="summarizeInspection" targetRef="inspectionEnd" />
+  </process>
+  <bpmndi:BPMNDiagram id="inspectionPlanV2_diagram">
+    <bpmndi:BPMNPlane id="inspectionPlanV2_plane" bpmnElement="inspectionPlanV2">
+      <bpmndi:BPMNShape id="inspectionTimerStart_di" bpmnElement="inspectionTimerStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="snapshotInspectionBatch_di" bpmnElement="snapshotInspectionBatch">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspectionTargetsRoute_di" bpmnElement="inspectionTargetsRoute">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspectionUnit_di" bpmnElement="inspectionUnit" isExpanded="false">
+        <dc:Bounds x="1040" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="summarizeInspection_di" bpmnElement="summarizeInspection">
+        <dc:Bounds x="1360" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspectionEnd_di" bpmnElement="inspectionEnd">
+        <dc:Bounds x="1680" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f1_di" bpmnElement="inspectionPlanV2_f1">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f2_di" bpmnElement="inspectionPlanV2_f2">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f3_di" bpmnElement="inspectionPlanV2_f3">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f4_di" bpmnElement="inspectionPlanV2_f4">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="180" />
+        <di:waypoint x="1320" y="180" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f5_di" bpmnElement="inspectionPlanV2_f5">
+        <di:waypoint x="1200" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f6_di" bpmnElement="inspectionPlanV2_f6">
+        <di:waypoint x="1520" y="120" />
+        <di:waypoint x="1640" y="120" />
+        <di:waypoint x="1640" y="100" />
+        <di:waypoint x="1680" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="inspectionUnit_diagram">
+    <bpmndi:BPMNPlane id="inspectionUnit_plane" bpmnElement="inspectionUnit">
+      <bpmndi:BPMNShape id="unitStart_di" bpmnElement="unitStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="performInspection_di" bpmnElement="performInspection">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspectionFindingRoute_di" bpmnElement="inspectionFindingRoute">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="queueFindingConversion_di" bpmnElement="queueFindingConversion">
+        <dc:Bounds x="1040" y="320" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="unitEnd_di" bpmnElement="unitEnd">
+        <dc:Bounds x="1360" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f7_di" bpmnElement="inspectionPlanV2_f7">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f8_di" bpmnElement="inspectionPlanV2_f8">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f9_di" bpmnElement="inspectionPlanV2_f9">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1320" y="100" />
+        <di:waypoint x="1360" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f10_di" bpmnElement="inspectionPlanV2_f10">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="360" />
+        <di:waypoint x="1040" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="inspectionPlanV2_f11_di" bpmnElement="inspectionPlanV2_f11">
+        <di:waypoint x="1200" y="360" />
+        <di:waypoint x="1240" y="360" />
+        <di:waypoint x="1240" y="100" />
+        <di:waypoint x="1360" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

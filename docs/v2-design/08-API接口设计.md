@@ -1,109 +1,118 @@
-# 08 API接口设计
+# 08 API接口设计（R2）
 
-本文件是拟议V2契约，不代表接口已经上线。实际可用V1接口以根目录FRONTEND-API.md为准。V1 `/api/auth`、`/api/repair-orders`、`/api/workflow/tasks`及管理员维修人员列表继续兼容；新增能力走 `/api/v2`。禁止把下列设计示例当作已通过的HTTP测试。
+拟议契约，均未因本轮设计上线。V1实际接口仍以FRONTEND-API.md为准；保留原路径/主要字段/JWT，V2能力用/api/v2。旧写接口命中V2单返回409 VERSION_UNSUPPORTED，不能跳过新流程。GET /api/v2/auth/me为新权限/多工作台契约，旧/api/auth/me不强制改变。
 
-## 通用协议
+## 1. 通用协议
 
-JWT继续使用Authorization: Bearer <accessToken>；操作者从认证上下文读取，不允许请求体指定actorId/studentId冒充。DB实时检查enabled、auth_version及权限；角色菜单只作展示。V2 ID为字符串，时间ISO8601含偏移，page从0开始、size默认20最大100；列表必须服务端过滤分页与稳定排序。V1现有数组/主要字段维持原状。
+ID统一十进制字符串；新时间ISO8601带偏移，服务端存timestamptz；page从0、size默认20最大100、稳定排序，返回items/page/size/total。操作者只从JWT subject取，拒绝请求actorId/studentId冒充。返回数据不含哈希、密钥、存储路径或任意流程变量。
 
-```json
-{"items":[],"page":0,"size":20,"total":0}
-```
+命令携带orderVersion、目标taskId（任务型）、cycleId/preparationEpoch（有准备代次）；关键创建/预约确认/发退料用Idempotency-Key，操作者+作用域+bodyHash验证，异体同key409。并行分支命令也锁工单、重验版本，不能假定另一支更新对自己永远无影响。没有泛化tasks/complete或variable写API。
 
-V2错误结构：
+错误：400校验、401未认证/账号失效、403功能无权、404不存在或数据不可见、409状态/任务/版本/资源冲突、503工作流不可用；500隐藏内部错误。V2错误{status,code,message,requestId,fieldErrors}，V1整数code继续适配。新的CORS头Idempotency-Key/If-Match/X-Request-Id和ETag暴露仅在未来实现明确来源白名单，当前配置不改。
 
-```json
-{"status":409,"code":"ORDER_STATE_CONFLICT","message":"工单已被其他人处理，请刷新","requestId":"opaque-id","fieldErrors":[]}
-```
+## 2. 用户、分类、位置与附件
 
-400格式/校验，401未认证/过期/账号失效，403已认证但无功能权限，404资源不存在或不可见，409状态/版本/预约/库存/幂等冲突，503工作流或必需服务暂不可用。V1原整数code用适配器保留。未知内部异常500不向前端返回堆栈/SQL。
-
-更新命令提交orderVersion或If-Match，服务端行锁后重验，陈旧版本409；关键创建、预约确认、领料发放支持Idempotency-Key，按操作者+命令作用域保存哈希，同key同体返回原资源，同key异体409。普通页面仍需按钮loading防双击；幂等不能替代事务和权限。
-
-CORS仅明确允许开发来源，Vite代理仍优先。实现V2时才增加允许Idempotency-Key/If-Match/X-Request-Id及暴露ETag，不能声称当前V1配置已支持这些新头。不得允许任意来源携带凭证。所有下述列表有同一分页上限，批量ID参数也限制数量。
-
-## 认证、用户和基础资料
-
-|方法与路径|授权/用途|
+|方法/路径（/api/v2前缀）|请求/响应及权限|
 |---|---|
-|POST /api/auth/login；GET /api/auth/me|保留V1登录/身份契约；V2新增permissions、authVersion需兼容扩展或独立/me|
-|GET/PATCH /api/v2/profile；POST /api/v2/profile/password|本人资料/校验旧密码后修改密码，撤销旧Token|
-|GET/POST /api/v2/users；PATCH /api/v2/users/{id}|user:manage；最小字段、分页；创建密码不返回；重置密码独立受审计命令|
-|POST /api/v2/users/{id}/enable 或 disable|user:manage；DB auth_version递增；避免停用最后一个可用管理者|
-|GET/POST/PATCH /api/v2/roles[/{id}]；GET /api/v2/permissions|role:manage；权限点只读，禁止随意构造服务端不存在的权限|
-|PUT /api/v2/users/{id}/roles；PUT /api/v2/roles/{id}/permissions|授权管理；防止越权授予，影响用户Token失效；最后管理者保护|
-|GET /api/v2/categories/tree；GET /api/v2/categories/quick|启用类别树/快捷入口；管理写接口需catalog:manage|
-|GET /api/v2/addresses；POST/PATCH/DELETE /api/v2/addresses[/{id}]；POST /{id}/default|仅本人；删除为停用，不修改历史快照|
-|GET /api/v2/buildings；GET /api/v2/rooms?buildingId=|最小位置字典，不返回住户名册；维护需asset:manage|
-|GET/POST/PATCH /api/v2/facilities[/{id}]；GET /{id}/maintenance-history|资产管理或已授权可见范围；历史工单需逐项过滤；公开部分仅脱敏投影|
-|GET /api/v2/facilities/resolve?code=|二维码不含JWT/联系人；校验位置业务权限后返回可报修资料，不授权读取宿舍历史|
-|GET /api/v2/repairers；GET/PATCH /api/v2/repairers/{id}/skills|调度管理员或本人最小资料；技能维护需dispatch:manage|
-|GET/POST /api/v2/repairers/{id}/shifts；GET/POST /api/v2/leaves；POST /leaves/{id}/decision|排班/请假；本人申请，管理员审批，不静默取消已确认预约|
+|GET /auth/me|id/username/roles/permissions/availableWorkspaces/authVersion；DB实时授权|
+|GET/PATCH /profile；POST /profile/password|本人；改密撤销旧会话|
+|GET/POST/PATCH /users[/{id}]；POST /users/{id}/enable或disable|user:manage；账号停用递增authVersion，不停最后管理者|
+|GET/POST/PATCH /roles[/{id}]；GET /permissions；PUT /users/{id}/roles；PUT /roles/{id}/permissions|role:manage；防自提权，事务保护最后管理者|
+|GET /categories/tree；GET /categories/quick；POST/PATCH /categories[/{id}]|八根/三级/quick/defaultDurationMinutes；维护catalog:manage；改父节点循环/深度400|
+|GET/POST/PATCH /addresses[/{id}]；DELETE /addresses/{id}；POST /addresses/{id}/default|本人；buildingId/roomId/contact/phone；位置一致，停用不删除快照|
+|GET/POST/PATCH /buildings[/{id}]；GET/POST/PATCH /rooms[/{id}]|读最小字典，写asset:manage；房间所属楼栋不可矛盾|
+|GET/POST/PATCH /facilities[/{id}]；GET /facilities/{id}/maintenance-history；GET /facilities/resolve?code=|资产权限/本人入住等范围；QR不授予历史隐私；facilityLocationVersion|
+|GET/PUT /building-travel-times|schedule:manage；fromBuildingId/toBuildingId/minutes/configVersion，有向，缺项显式UNKNOWN|
+|POST /files；GET /files/{id}/content|JPG/PNG/WebP、<=5242880字节；每组最多6张绑定时校验，授权Blob下载；私有暂存|
 
-## 工单与流程命令
-
-|方法与路径|请求要点/权限|
-|---|---|
-|GET /api/v2/orders|分页过滤status/categoryId/keyword/date；学生本人、维修者分配范围、管理员授权范围|
-|POST /api/v2/orders|categoryId,addressId,description,fileIds,desiredWindow,facilityId可选；本人创建，服务端生成快照/creator/学生/流程|
-|GET /api/v2/orders/{id}|按工单可见范围；含快照、版本、allowedActions、基本流程摘要；不返回哈希/内部变量|
-|GET /api/v2/orders/{id}/records|按时间稳定排序与分页，保留连续返工；详情规则一致|
-|GET /api/v2/orders/{id}/workflow|generation/mode、actualDefinitionId、stage、tasks、ended、allowedActions；LEGACY不伪造实例|
-|GET /api/v2/orders/{id}/workflow/diagram；GET /{id}/workflow/activities|只读真实BPMN XML/DI及历史活动实例；无运行实例用历史服务，返回迭代实例而非仅节点去重|
-|GET /api/v2/workflow/tasks；GET /api/v2/workflow/task-counts|当前权限可处理待办，分页/分组计数；维修与验收按真实assignee，管理员按候选授权|
-|POST /api/v2/orders/{id}/withdraw|审核前学生本人；理由、orderVersion；新增CANCELLED终态|
-|POST /api/v2/orders/{id}/supplement|本人补充；新附件/内容及版本，重新进入原审核环节|
-|POST /api/v2/orders/{id}/review|decision APPROVE/REJECT/RETURN_INFO，reason；order:review，任务/状态匹配|
-|GET /api/v2/orders/{id}/dispatch-recommendations|dispatch:manage，返回候选和硬约束失败原因，不占用日历|
-|POST /api/v2/orders/{id}/assign|repairerId,recommendationId可选,reason,orderVersion；管理员最终决定，重新校验可用性|
-|POST /api/v2/orders/{id}/assignment/accept 或 refuse|被分配人员本人；拒单理由必填，回待派单不结束工单|
-|POST /api/v2/orders/{id}/transfer|dispatch:manage；新维修者和原因，资源释放与新任务分配原子完成|
-|GET/POST /api/v2/orders/{id}/appointments；POST /appointments/{appointmentId}/confirm 或 reject|本人相关方，startAt/endAt、reason、版本；谁可最终确认待业务决策；改期新增提议不覆盖旧记录|
-|POST /api/v2/orders/{id}/access-authorizations；POST /access-authorizations/{id}/revoke|学生本人显式授权/撤销，时段/scope/termsVersion；默认不授权入室|
-|POST /api/v2/orders/{id}/access-events|当前维修者人工记录入室/离室/无法入室；必须检查有效授权，不能伪称门禁验证|
-|POST /api/v2/orders/{id}/start；POST /pause；POST /resume|当前维修者，合法节点、原因、预约条件；暂停不当作已完成|
-|POST /api/v2/orders/{id}/finish|当前维修者；description,fileIds、version；同事务新增维修记录及推进验收|
-|POST /api/v2/orders/{id}/acceptance|acceptor本人；decision ACCEPT/REWORK、reason；保留原维修者返工与完整迭代记录|
-|POST /api/v2/orders/{id}/evaluation|已完成且本人；quality/attitude/responseSpeed/punctuality可空/comment；评分范围与重复约束|
-
-V1工单保持旧命令和旧流程；V2工单不得让旧API绕过新增预约/授权节点。V1命令命中V2工单返回409并提供升级客户端说明；读取可提供兼容粗状态但不泄露错误按钮。没有泛化 `/tasks/{id}/complete` 或任意变量写入接口。
-
-提交示例（未实施）：
+创建报修请求：
 
 ```json
-{"categoryId":"8","addressId":"12","description":"空调不制冷","fileIds":["28"],"desiredWindow":{"startAt":"2027-03-10T09:00:00+08:00","endAt":"2027-03-10T12:00:00+08:00"}}
+{"categoryId":"8","addressId":"12","facilityId":"44","description":"空调不制冷","fileIds":["28"],"timePreference":{"mode":"WINDOW","startAt":"2027-03-10T09:00:00+08:00","endAt":"2027-03-10T12:00:00+08:00"}}
 ```
 
-详情摘要示例（联系人仅在私密详情授权后出现，列表默认隐藏电话）：
+时间不限使用{"timePreference":{"mode":"ANY"}}，不得同时带start/end。facility与address位置冲突返回400 LOCATION_MISMATCH，不静默替换。首次估时取项目默认快照，缺失标NEEDS_ESTIMATE而不编造时长。
+
+## 3. 工单、修订、轮次及多任务
+
+|方法/路径|请求/响应与权限|
+|---|---|
+|GET /orders；POST /orders；GET /orders/{id}|SQL权限分页；创建原子快照/修订/期望/流程；详情附version/round/stage/allowedActions|
+|GET /orders/{id}/revisions；POST /orders/{id}/supplement|补充taskId/version、title/description/categoryId/addressId/fileIds；追加revision及快照，不覆盖历史|
+|GET /orders/{id}/time-preferences；POST /orders/{id}/time-preferences|新增WINDOW/ANY版本；审核前或合法协商任务允许；已确认预约不随意改变，新版本使提议需重审|
+|GET /orders/{id}/estimate-history；POST /orders/{id}/estimate-adjustments|minutes>0/reason/expectedEstimateVersion；当前维修者或授权调度者；改变需重验预约|
+|GET /orders/{id}/cycles；GET /orders/{id}/records|按roundNo/时间分页；记录含cycleId/roundNo/submissionTaskId/附件/原预约快照|
+|GET /orders/{id}/workflow|见下方多任务契约；LEGACY mode无伪造实例|
+|GET /orders/{id}/workflow/model?processLinkId=；GET /orders/{id}/workflow/activities|实际definitionId XML/DI及所有活动实例；关联材料模型需独立权限；历史服务查完成|
+|GET /workflow/tasks；GET /workflow/task-counts|当前用户授权root/材料/巡检/投诉待办，scope/taskType过滤；避免只按root查漏独立任务|
+|POST /orders/{id}/withdraw|本人、reviewScope内，reason/orderVersion；审核后409|
+|POST /orders/{id}/review|decision APPROVE/REJECT/RETURN_INFO、reason/taskId；order:review|
+|GET /orders/{id}/dispatch-recommendations；POST /orders/{id}/assign|repairerId/orderVersion/recommendationId可选/reason；dispatch:manage最终决定|
+|POST /orders/{id}/assignment/accept或refuse|被分配本人，taskId/epoch/reason；拒绝回派单|
+|POST /orders/{id}/transfer|授权管理员；targetRepairerId可选、reason、orderVersion/cycleId/preparationEpoch；中断允许scope并可能进入材料核对，不能宣称立即转派完成|
+|POST /orders/{id}/start；POST /orders/{id}/pause；POST /orders/{id}/resume|当前维修者；pause reasonCode/needsReplan，Service决定资源/SLA影响而非信任客户端布尔值|
+|POST /orders/{id}/finish|本轮taskId/description/fileIds/epoch；追加record并进入验收，重复409|
+|POST /orders/{id}/acceptance|本人acceptor，decision ACCEPT/REWORK/reason/cycleId/taskId；7天后仍可，返工不限次|
+
+多任务响应示例（学生仅可见自己的任务及脱敏分支）：
 
 ```json
-{"id":"301","generation":"V2","status":"ASSIGNED","workflowStage":"APPOINTMENT_NEGOTIATION","version":4,"workflow":{"mode":"FLOWABLE","ended":false},"allowedActions":["PROPOSE_APPOINTMENT"],"addressSnapshot":{"buildingName":"示例楼","roomNo":"示例房间"}}
+{"orderId":"301","generation":"V2","mode":"FLOWABLE","status":"ASSIGNED","workflowStage":"PREPARING","orderVersion":8,"cycleId":"51","roundNo":0,"preparationEpoch":2,"ended":false,"activities":[{"activityId":"appointmentNegotiation","scope":"APPOINTMENT","state":"ACTIVE"},{"activityId":"resourceCall","scope":"RESOURCE","state":"ACTIVE"}],"branchStates":[{"branch":"APPOINTMENT","state":"WAITING_STUDENT_CONSENT"},{"branch":"RESOURCE","state":"PENDING"}],"tasks":[{"taskId":"t-student-2","processInstanceId":"pi-301","definitionKey":"studentConsent","scope":"APPOINTMENT","assigneeId":"4","cycleId":"51","preparationEpoch":2,"allowedActions":["CONSENT_APPOINTMENT","REJECT_APPOINTMENT"]}],"allowedActions":["CONSENT_APPOINTMENT","REJECT_APPOINTMENT"],"taskActions":[{"action":"CONSENT_APPOINTMENT","taskId":"t-student-2","orderVersion":8,"preparationEpoch":2}]}
 ```
 
-推荐响应的候选包含repairerId/name、feasibleWindows、score、componentScores、reasonCodes、configVersion、expiresAt；无候选返回空items及淘汰摘要，不自动违规派单，不公开其私人请假原因。
+管理员或仓库人员另按权限看到对应材料任务；不得把以上“1个可见任务”误解为引擎只有1个任务。ended依根流程runtime/history判定，不依tasks.length。
 
-## 附件、公共协同与资源
+## 4. 预约、授权、材料与SLA
 
-|方法与路径|边界|
+|方法/路径|请求/响应与约束|
 |---|---|
-|POST /api/v2/files；GET /api/v2/files/{id}/content|multipart上传、服务端类型/大小/数量检测；鉴权Blob下载；不返回存储绝对路径/无鉴权永久URL|
-|GET/POST /api/v2/orders/{id}/messages|参与者可见；纯文本转义、分页；公共评论不能复用私密沟通投影|
-|POST /api/v2/orders/{id}/complaints；GET /api/v2/complaints；POST /{id}/resolve|本人投诉、本人/有授权管理员查询处理；敏感投诉不默认暴露被投诉人|
-|GET /api/v2/followups；POST /{id}/complete|专门客服/管理员权限；独立回访，不复活终态工单|
-|GET /api/v2/public-incidents；GET /{id}|只返回公共位置、脱敏摘要、影响统计、公开进展，不返回原工单、电话、私人房号|
-|GET /api/v2/orders/{id}/duplicate-candidates；POST /api/v2/public-incidents/{id}/link|管理员确认；先软关联，真正联动合并需独立阶段批准及各单验收规则|
-|POST/DELETE /api/v2/public-incidents/{id}/subscription；POST /{id}/feedback|当前用户订阅/公共反馈；频控、脱敏审核；订阅不扩大工单可见范围|
-|POST /api/v2/public-announcements；POST /{id}/publish|public:publish；审核后的独立公开文本|
-|GET/POST/PATCH /api/v2/stock-items[/{id}]；GET /api/v2/stock-balances|库存授权；余额不提供任意PATCH|
-|POST /api/v2/material-requests；GET /api/v2/material-requests；POST /{id}/approve 或 reject|当前维修人员为自己的工单申请，库存授权审批；数量与任务一致|
-|POST /api/v2/material-requests/{id}/issue；POST /{id}/return|stock:issue；幂等键、行明细、版本；防超额、并发负库存|
-|POST /api/v2/stock-receipts；GET /api/v2/stock-movements|实际入库/流水；不实现采购支付系统；调整需独立审计权限|
-|GET /api/v2/orders/{id}/materials|参与者必要材料清单；成本金额仅授权管理者可见|
-|GET/POST/PATCH /api/v2/inspection-plans[/{id}]；GET /api/v2/inspection-tasks|管理员计划、维修者本人任务；定时唯一生成|
-|POST /api/v2/inspection-tasks/{id}/complete；POST /findings/{findingId}/convert|真实检查结果；异常转单幂等，source SYSTEM/STAFF、指定验收管理员|
-|GET /api/v2/notifications；POST /{id}/read|只允许本人，不根据前端recipientId查询他人消息|
-|GET /api/v2/knowledge；GET /{id}；POST/PATCH /api/v2/knowledge[/{id}]；POST /{id}/publish|学生只读已发布安全知识，编辑发布需权限|
-|GET /api/v2/statistics/overview；GET /api/v2/statistics/service-quality|授权维度、限时间范围；口径区分响应/等待/维修/预约守时，缺失值不记0分|
-|GET /api/v2/audit-events|audit:read；分页脱敏，只读，限制导出范围，不提供任意日志删除|
+|GET/POST /orders/{id}/appointments|维修者或授权协调者提议startAt/endAt、preferenceId、estimateVersion、epoch、supersedesId、reason；返回proposalVersion/studentConsentRequired/participants|
+|POST /appointments/{id}/decisions|学生本人decision ACCEPT/REJECT/COUNTER、proposalVersion、counterWindow可选/reason；追加历史，不能改已同意提议时间|
+|POST /appointments/{id}/confirm|当前维修者，proposalVersion/taskId/orderVersion/epoch；学生必要同意齐全后原子释放旧预订/新建预订；冲突409|
+|GET /appointments/{id}/history；GET /repairers/{id}/calendar|相关本人/调度权限；历史提议/决定；日历只暴露业务必要时段，不曝光请假私因|
+|POST /orders/{id}/access-authorizations；POST /access-authorizations/{id}/revoke；GET /orders/{id}/access-events；POST /orders/{id}/access-events|本人授权范围/validFrom/To/termsVersion；ATTENDED可无authorizationId，UNATTENDED必须本单有效授权且校方规则允许；撤销不抹记录|
+|GET /orders/{id}/preparations；POST /orders/{id}/material-requirements|当前维修者/调度权限；NONE/KNOWN/UNKNOWN及行明细；变化创建新epoch，不把未知当NONE|
+|GET/POST /material-requests；POST /material-requests/{id}/approve或reject|独立流程；关联order/cycle/epoch；stock:approve，审批不等于发料|
+|POST /material-requests/{id}/issue；POST /material-requests/{id}/return；POST /material-requests/{id}/handover|stock:issue；幂等键/行数量/原movementId；净发满足需求才READY；交接需双方/授权确认记录|
+|GET/POST/PATCH /stock-items[/{id}]；GET /stock-balances；GET /stock-movements；POST /stock-receipts|库存授权；余额无任意PATCH；入库单价/数量，财务口径未确认不出正式核准成本|
+|GET /orders/{id}/sla；GET/POST/PATCH /sla-rules[/{id}]|授权配置ruleVersion/threshold/pausePolicy；验收7天/评价15天默认已定；变规则不偷偷改在途deadline|
+|GET /orders/{id}/materials|本人必要明细；价格/成本仅stock/cost权限；公开不返回|
 
-所有列表权限必须进入SQL筛选和count，不能先全量取出再在Java或浏览器过滤。统计不泄露可识别私人信息。具体菜单/按钮/权限矩阵见01与07；具体请求DTO和OpenAPI应在每阶段开发前冻结并与前端共享契约用例。
+预约确认请求示例：
+
+```json
+{"proposalVersion":3,"taskId":"t-confirm-3","orderVersion":12,"cycleId":"51","preparationEpoch":2}
+```
+
+材料转派冲突返回409 MATERIAL_SETTLEMENT_REQUIRED或命令成功进入TRANSFER_RECONCILIATION（返回order状态及pendingActions），不能一边报“已转派”一边旧人还持有材料。异步后续处理只显示真实状态，不以202伪装最终成功。
+
+## 5. 公共、巡检、服务质量及支撑接口
+
+|方法/路径|语义与权限|
+|---|---|
+|GET /public-incidents[/{id}]；POST /public-incidents；POST /public-incidents/{id}/confirm-result|脱敏投影；创建/结果确认public:manage，管理员负责主实际结果|
+|GET /orders/{id}/duplicate-candidates；POST /public-incidents/{id}/links|管理员建议并按规则取得原单关联同意；独立实例/epoch，不合并私密宿舍|
+|POST /incident-link-proposals/{id}/decisions|本人ACCEPT/REJECT，proposalVersion/linkEpoch，不能管理员代同意；关联激活后才等待主结果消息|
+|POST /incident-links/{id}/unlink-requests；POST /incident-links/{id}/unlink-decision|本人申请、管理员确认，主单已启动不被撤回；解绑回原独立处理并废弃旧消息关联|
+|POST /incident-links/{id}/disputes；POST /incident-disputes/{id}/resolve|原单验收不同意/争议；管理员核查，可关联新后续工单，不强制代本人验收|
+|POST/DELETE /public-incidents/{id}/subscription；POST /public-incidents/{id}/feedback；POST /public-announcements/{id}/publish|本人订阅/脱敏反馈，发布专门权限|
+|GET/POST/PATCH /inspection-plans[/{id}]；GET /inspection-batches；GET /inspection-tasks|计划/批次/本人目标任务有界分页；独立timer/MI，不让前端任意启动全校批次|
+|POST /inspection-tasks/{id}/complete；POST /inspection-findings/{id}/convert|异常转单唯一关联、合法SYSTEM/STAFF来源/acceptor，Outbox最终状态可查询，不假装同步完成|
+|POST /orders/{id}/evaluation|最终完成后15天内首次评价，quality/attitude/responseSpeed/punctuality nullable；未预约守时必须null|
+|GET/POST /orders/{id}/messages；POST /orders/{id}/complaints；GET /complaints；POST /complaints/{id}/decision|相关参与者沟通；投诉独立实例，私密范围单独判断|
+|GET /followups；POST /followups/{id}/contact-records；POST /followups/{id}/complete|独立回访任务，来源FK明确，不复活原结束流程|
+|GET /notifications；POST /notifications/{id}/read|仅本人；timer投递去重，URL仍需授权|
+|GET/POST/PATCH /knowledge[/{id}]；POST /knowledge/{id}/publish|学生只读PUBLISHED；危险电气自助内容提示停止危险操作|
+|GET /statistics/overview；GET /statistics/service-quality；GET /audit-events|授权范围/日期上限/脱敏；统计区分等待、维修、暂停、返工和公共原单数量|
+
+## 6. 契约一致性检查清单
+
+ANY/WINDOW与正式预约分离；defaultDuration→estimateHistory→appointment绑定；travel有向配置；proposal与participant/decision历史；revision快照与附件；cycle/epoch与record；position一致400；SLA规则快照与timer；净材料/冲正；tasks/activities/branchStates/stage均有数据来源。细节OpenAPI和DTO在开发前冻结，本轮不宣称这些设计接口已上线。
+
+
+GET /public-incidents/{id}/results返回脱敏且管理员已确认的resultVersion/时间/摘要；GET /orders/{id}/cycles对公共验收返回kind=PUBLIC_ACCEPTANCE与publicResultId，不能返回伪造repairRecord。巡检GET /inspection-findings/{id}含conversionState/orderId，PENDING/FAILED不提示已创建成功。
+
+
+公共关联POST /public-incidents/{id}/links须本人提议同意且当前REVIEW或DISPATCH可用；其他阶段409 LINK_STAGE_CONFLICT。POST /incident-links/{id}/unlink-decision只在PUBLIC_LINKED_WAIT且未送达结果执行，否则409 USE_DISPUTE。公共阶段与status以05补充表为准，响应仍使用同一tasks/activities/epoch结构。
+
+材料交接请求含originalIssueMovementId/fromHolderId/toHolderId/qty及版本，操作者仍来自JWT；from/to是业务目标而非冒充操作者。POST /material-handovers/{id}/confirm由相应本人或授权仓库确认，双确认结果可查，不能单方改holder。/workflow/task-counts明确taskTotal和distinctOrderTotal。

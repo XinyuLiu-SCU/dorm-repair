@@ -1,0 +1,258 @@
+<?xml version='1.0' encoding='utf-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="materialRequestV2Definitions" targetNamespace="https://dormrepair.example/design-r2">
+  <process id="materialRequestV2" name="材料领用（R2不可执行评审）" isExecutable="false">
+    <documentation>DESIGN ONLY. No deployment. Delegate beans, actor/permission mapping, transaction logic and correlation are not implemented. Each collapsed scope has its own editable BPMNPlane.</documentation>
+    <startEvent id="materialStart" name="独立申请启动">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </startEvent>
+    <subProcess id="materialRequestScope" name="审批预留实发作用域">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <startEvent id="materialScopeStart" name="申请">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </startEvent>
+      <userTask id="approveMaterial" name="库存授权审批">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="materialApprovalRoute" name="审批决定">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <serviceTask id="reserveMaterial" name="按锁序预留" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <userTask id="issueMaterial" name="实际发料可分批">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="materialQuantityRoute" name="净实发满足需求">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <serviceTask id="markMaterialReady" name="登记READY" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <endEvent id="materialReadyEnd" name="完成资源准备">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <serviceTask id="denyMaterial" name="登记BLOCKED" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <endEvent id="materialDeniedEnd" name="拒绝返回">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <sequenceFlow id="materialRequestV2_f9" sourceRef="materialScopeStart" targetRef="approveMaterial" />
+      <sequenceFlow id="materialRequestV2_f10" sourceRef="approveMaterial" targetRef="materialApprovalRoute" />
+      <sequenceFlow id="materialRequestV2_f11" sourceRef="materialApprovalRoute" targetRef="reserveMaterial">
+        <conditionExpression xsi:type="tFormalExpression">${materialApproved == true}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="materialRequestV2_f12" sourceRef="materialApprovalRoute" targetRef="denyMaterial">
+        <conditionExpression xsi:type="tFormalExpression">${materialApproved == false}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="materialRequestV2_f13" sourceRef="reserveMaterial" targetRef="issueMaterial" />
+      <sequenceFlow id="materialRequestV2_f14" sourceRef="issueMaterial" targetRef="materialQuantityRoute" />
+      <sequenceFlow id="materialRequestV2_f15" sourceRef="materialQuantityRoute" targetRef="issueMaterial">
+        <conditionExpression xsi:type="tFormalExpression">${materialQuantitySatisfied == false}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="materialRequestV2_f16" sourceRef="materialQuantityRoute" targetRef="markMaterialReady">
+        <conditionExpression xsi:type="tFormalExpression">${materialQuantitySatisfied == true}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="materialRequestV2_f17" sourceRef="markMaterialReady" targetRef="materialReadyEnd" />
+      <sequenceFlow id="materialRequestV2_f18" sourceRef="denyMaterial" targetRef="materialDeniedEnd" />
+    </subProcess>
+    <endEvent id="materialDone" name="材料结果返回调用者">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <serviceTask id="cancelMaterialCleanup" name="释放未发预留核对已发" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <exclusiveGateway id="materialSettlementRoute" name="实发待核对">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <userTask id="materialSettlement" name="确认退料或交接">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <serviceTask id="markMaterialBlocked" name="返回BLOCKED" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <endEvent id="materialCancelled" name="取消结束">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <sequenceFlow id="materialRequestV2_f1" sourceRef="materialStart" targetRef="materialRequestScope" />
+    <sequenceFlow id="materialRequestV2_f2" sourceRef="materialRequestScope" targetRef="materialDone" />
+    <boundaryEvent id="materialCancelBoundary" name="materialCancelBoundary" attachedToRef="materialRequestScope" cancelActivity="true">
+      <messageEventDefinition messageRef="cancelMaterialRequest" />
+    </boundaryEvent>
+    <sequenceFlow id="materialRequestV2_f3" sourceRef="materialCancelBoundary" targetRef="cancelMaterialCleanup" />
+    <sequenceFlow id="materialRequestV2_f4" sourceRef="cancelMaterialCleanup" targetRef="materialSettlementRoute" />
+    <sequenceFlow id="materialRequestV2_f5" sourceRef="materialSettlementRoute" targetRef="materialSettlement">
+      <conditionExpression xsi:type="tFormalExpression">${materialSettlementRequired == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="materialRequestV2_f6" sourceRef="materialSettlementRoute" targetRef="markMaterialBlocked">
+      <conditionExpression xsi:type="tFormalExpression">${materialSettlementRequired == false}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="materialRequestV2_f7" sourceRef="materialSettlement" targetRef="markMaterialBlocked" />
+    <sequenceFlow id="materialRequestV2_f8" sourceRef="markMaterialBlocked" targetRef="materialCancelled" />
+  </process>
+  <message id="cancelMaterialRequest" name="cancelMaterialRequest" />
+  <bpmndi:BPMNDiagram id="materialRequestV2_diagram">
+    <bpmndi:BPMNPlane id="materialRequestV2_plane" bpmnElement="materialRequestV2">
+      <bpmndi:BPMNShape id="materialStart_di" bpmnElement="materialStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialRequestScope_di" bpmnElement="materialRequestScope" isExpanded="false">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialDone_di" bpmnElement="materialDone">
+        <dc:Bounds x="720" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="cancelMaterialCleanup_di" bpmnElement="cancelMaterialCleanup">
+        <dc:Bounds x="400" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialSettlementRoute_di" bpmnElement="materialSettlementRoute">
+        <dc:Bounds x="720" y="560" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialSettlement_di" bpmnElement="materialSettlement">
+        <dc:Bounds x="1040" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="markMaterialBlocked_di" bpmnElement="markMaterialBlocked">
+        <dc:Bounds x="1360" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialCancelled_di" bpmnElement="materialCancelled">
+        <dc:Bounds x="1680" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialCancelBoundary_di" bpmnElement="materialCancelBoundary">
+        <dc:Bounds x="520" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="materialRequestV2_f1_di" bpmnElement="materialRequestV2_f1">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f2_di" bpmnElement="materialRequestV2_f2">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="680" y="120" />
+        <di:waypoint x="680" y="100" />
+        <di:waypoint x="720" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f3_di" bpmnElement="materialRequestV2_f3">
+        <di:waypoint x="540" y="180" />
+        <di:waypoint x="540" y="220" />
+        <di:waypoint x="360" y="220" />
+        <di:waypoint x="360" y="600" />
+        <di:waypoint x="400" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f4_di" bpmnElement="materialRequestV2_f4">
+        <di:waypoint x="560" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f5_di" bpmnElement="materialRequestV2_f5">
+        <di:waypoint x="800" y="600" />
+        <di:waypoint x="1040" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f6_di" bpmnElement="materialRequestV2_f6">
+        <di:waypoint x="800" y="600" />
+        <di:waypoint x="840" y="600" />
+        <di:waypoint x="840" y="660" />
+        <di:waypoint x="1320" y="660" />
+        <di:waypoint x="1320" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f7_di" bpmnElement="materialRequestV2_f7">
+        <di:waypoint x="1200" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f8_di" bpmnElement="materialRequestV2_f8">
+        <di:waypoint x="1520" y="600" />
+        <di:waypoint x="1640" y="600" />
+        <di:waypoint x="1640" y="580" />
+        <di:waypoint x="1680" y="580" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="materialRequestScope_diagram">
+    <bpmndi:BPMNPlane id="materialRequestScope_plane" bpmnElement="materialRequestScope">
+      <bpmndi:BPMNShape id="materialScopeStart_di" bpmnElement="materialScopeStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approveMaterial_di" bpmnElement="approveMaterial">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialApprovalRoute_di" bpmnElement="materialApprovalRoute">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reserveMaterial_di" bpmnElement="reserveMaterial">
+        <dc:Bounds x="1040" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="issueMaterial_di" bpmnElement="issueMaterial">
+        <dc:Bounds x="1360" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialQuantityRoute_di" bpmnElement="materialQuantityRoute">
+        <dc:Bounds x="1680" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="markMaterialReady_di" bpmnElement="markMaterialReady">
+        <dc:Bounds x="2000" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialReadyEnd_di" bpmnElement="materialReadyEnd">
+        <dc:Bounds x="2320" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="denyMaterial_di" bpmnElement="denyMaterial">
+        <dc:Bounds x="720" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialDeniedEnd_di" bpmnElement="materialDeniedEnd">
+        <dc:Bounds x="1040" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="materialRequestV2_f9_di" bpmnElement="materialRequestV2_f9">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f10_di" bpmnElement="materialRequestV2_f10">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f11_di" bpmnElement="materialRequestV2_f11">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f12_di" bpmnElement="materialRequestV2_f12">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="540" />
+        <di:waypoint x="680" y="540" />
+        <di:waypoint x="680" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f13_di" bpmnElement="materialRequestV2_f13">
+        <di:waypoint x="1200" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f14_di" bpmnElement="materialRequestV2_f14">
+        <di:waypoint x="1520" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f15_di" bpmnElement="materialRequestV2_f15">
+        <di:waypoint x="1760" y="120" />
+        <di:waypoint x="1800" y="120" />
+        <di:waypoint x="1800" y="180" />
+        <di:waypoint x="1320" y="180" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f16_di" bpmnElement="materialRequestV2_f16">
+        <di:waypoint x="1760" y="120" />
+        <di:waypoint x="2000" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f17_di" bpmnElement="materialRequestV2_f17">
+        <di:waypoint x="2160" y="120" />
+        <di:waypoint x="2280" y="120" />
+        <di:waypoint x="2280" y="100" />
+        <di:waypoint x="2320" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="materialRequestV2_f18_di" bpmnElement="materialRequestV2_f18">
+        <di:waypoint x="880" y="600" />
+        <di:waypoint x="1000" y="600" />
+        <di:waypoint x="1000" y="580" />
+        <di:waypoint x="1040" y="580" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

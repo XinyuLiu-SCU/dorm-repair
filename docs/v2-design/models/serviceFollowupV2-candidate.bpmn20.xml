@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="serviceFollowupV2Definitions" targetNamespace="https://dormrepair.example/design-r2">
+  <process id="serviceFollowupV2" name="投诉或差评回访（R2不可执行评审）" isExecutable="false">
+    <documentation>DESIGN ONLY. No deployment. Delegate beans, actor/permission mapping, transaction logic and correlation are not implemented. Each collapsed scope has its own editable BPMNPlane.</documentation>
+    <startEvent id="followupStart" name="真实来源启动">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </startEvent>
+    <userTask id="assignFollowup" name="分配回访处理人">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <userTask id="contactFollowup" name="联系并保留记录">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <exclusiveGateway id="followupRoute" name="解决或继续联系">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <serviceTask id="followupComplete" name="登记处理结果" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <endEvent id="followupEnd" name="回访结束不复活原单">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <sequenceFlow id="serviceFollowupV2_f1" sourceRef="followupStart" targetRef="assignFollowup" />
+    <sequenceFlow id="serviceFollowupV2_f2" sourceRef="assignFollowup" targetRef="contactFollowup" />
+    <sequenceFlow id="serviceFollowupV2_f3" sourceRef="contactFollowup" targetRef="followupRoute" />
+    <sequenceFlow id="serviceFollowupV2_f4" sourceRef="followupRoute" targetRef="contactFollowup">
+      <conditionExpression xsi:type="tFormalExpression">${followupDecision == 'CONTACT_AGAIN'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="serviceFollowupV2_f5" sourceRef="followupRoute" targetRef="followupComplete">
+      <conditionExpression xsi:type="tFormalExpression">${followupDecision == 'RESOLVED'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="serviceFollowupV2_f6" sourceRef="followupComplete" targetRef="followupEnd" />
+  </process>
+  <bpmndi:BPMNDiagram id="serviceFollowupV2_diagram">
+    <bpmndi:BPMNPlane id="serviceFollowupV2_plane" bpmnElement="serviceFollowupV2">
+      <bpmndi:BPMNShape id="followupStart_di" bpmnElement="followupStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="assignFollowup_di" bpmnElement="assignFollowup">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="contactFollowup_di" bpmnElement="contactFollowup">
+        <dc:Bounds x="720" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="followupRoute_di" bpmnElement="followupRoute">
+        <dc:Bounds x="1040" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="followupComplete_di" bpmnElement="followupComplete">
+        <dc:Bounds x="1360" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="followupEnd_di" bpmnElement="followupEnd">
+        <dc:Bounds x="1680" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f1_di" bpmnElement="serviceFollowupV2_f1">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f2_di" bpmnElement="serviceFollowupV2_f2">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f3_di" bpmnElement="serviceFollowupV2_f3">
+        <di:waypoint x="880" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f4_di" bpmnElement="serviceFollowupV2_f4">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1160" y="120" />
+        <di:waypoint x="1160" y="180" />
+        <di:waypoint x="680" y="180" />
+        <di:waypoint x="680" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f5_di" bpmnElement="serviceFollowupV2_f5">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="serviceFollowupV2_f6_di" bpmnElement="serviceFollowupV2_f6">
+        <di:waypoint x="1520" y="120" />
+        <di:waypoint x="1640" y="120" />
+        <di:waypoint x="1640" y="100" />
+        <di:waypoint x="1680" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,1263 @@
+<?xml version='1.0' encoding='utf-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="dormRepairV2Definitions" targetNamespace="https://dormrepair.example/design-r2">
+  <process id="dormRepairV2" name="宿舍报修复杂工作流（R2不可执行评审）" isExecutable="false">
+    <documentation>DESIGN ONLY. No deployment. Delegate beans, actor/permission mapping, transaction logic and correlation are not implemented. Each collapsed scope has its own editable BPMNPlane.</documentation>
+    <startEvent id="submitStart" name="提交">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </startEvent>
+    <subProcess id="reviewScope" name="审核退补子流程">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <startEvent id="reviewStart" name="进入审核">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </startEvent>
+      <userTask id="review" name="审核">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="reviewDecision" name="审核决定">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <endEvent id="reviewApproved" name="通过">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <endEvent id="reviewRejected" name="驳回">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <userTask id="supplement" name="资料补充并新增修订">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <sequenceFlow id="dormRepairV2_f24" sourceRef="reviewStart" targetRef="review" />
+      <sequenceFlow id="dormRepairV2_f25" sourceRef="review" targetRef="reviewDecision" />
+      <sequenceFlow id="dormRepairV2_f26" sourceRef="reviewDecision" targetRef="reviewApproved">
+        <conditionExpression xsi:type="tFormalExpression">${reviewOutcome == 'APPROVE'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f27" sourceRef="reviewDecision" targetRef="reviewRejected">
+        <conditionExpression xsi:type="tFormalExpression">${reviewOutcome == 'REJECT'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f28" sourceRef="reviewDecision" targetRef="supplement">
+        <conditionExpression xsi:type="tFormalExpression">${reviewOutcome == 'RETURN_INFO'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f29" sourceRef="supplement" targetRef="review" />
+    </subProcess>
+    <exclusiveGateway id="reviewRoute" name="审核结果">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <exclusiveGateway id="modeRoute" name="普通或公共">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <userTask id="dispatch" name="管理员派单">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <userTask id="workerAccept" name="维修者接单">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <exclusiveGateway id="workerRoute" name="接拒单">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <subProcess id="workCycle" name="维修周期 并行准备与异常">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <startEvent id="cycleStart" name="进入当前轮次">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </startEvent>
+      <serviceTask id="openEpoch" name="创建准备代次并清路由值" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <subProcess id="preparationScope" name="预约及资源并行准备">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        <startEvent id="prepStart" name="准备开始">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </startEvent>
+        <parallelGateway id="prepareFork" name="并行分叉">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </parallelGateway>
+        <subProcess id="appointmentNegotiation" name="预约协商">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          <startEvent id="apptStart" name="开始本代协商">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </startEvent>
+          <userTask id="proposeAppointment" name="维修者提议时间">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </userTask>
+          <exclusiveGateway id="consentNeeded" name="超学生期望窗口">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </exclusiveGateway>
+          <userTask id="studentConsent" name="学生本次提议同意或反提议">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </userTask>
+          <exclusiveGateway id="consentRoute" name="学生决定">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </exclusiveGateway>
+          <userTask id="confirmAppointment" name="维修者正式确认并预订">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </userTask>
+          <endEvent id="apptEnd" name="预约分支完成">
+            <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          </endEvent>
+          <sequenceFlow id="dormRepairV2_f63" sourceRef="apptStart" targetRef="proposeAppointment" />
+          <sequenceFlow id="dormRepairV2_f64" sourceRef="proposeAppointment" targetRef="consentNeeded" />
+          <sequenceFlow id="dormRepairV2_f65" sourceRef="consentNeeded" targetRef="confirmAppointment">
+            <conditionExpression xsi:type="tFormalExpression">${studentConsentRequired == false}</conditionExpression>
+          </sequenceFlow>
+          <sequenceFlow id="dormRepairV2_f66" sourceRef="consentNeeded" targetRef="studentConsent">
+            <conditionExpression xsi:type="tFormalExpression">${studentConsentRequired == true}</conditionExpression>
+          </sequenceFlow>
+          <sequenceFlow id="dormRepairV2_f67" sourceRef="studentConsent" targetRef="consentRoute" />
+          <sequenceFlow id="dormRepairV2_f68" sourceRef="consentRoute" targetRef="confirmAppointment">
+            <conditionExpression xsi:type="tFormalExpression">${studentDecision == 'ACCEPT'}</conditionExpression>
+          </sequenceFlow>
+          <sequenceFlow id="dormRepairV2_f69" sourceRef="consentRoute" targetRef="proposeAppointment">
+            <conditionExpression xsi:type="tFormalExpression">${studentDecision == 'REJECT' || studentDecision == 'COUNTER'}</conditionExpression>
+          </sequenceFlow>
+          <sequenceFlow id="dormRepairV2_f70" sourceRef="confirmAppointment" targetRef="apptEnd" />
+        </subProcess>
+        <parallelGateway id="prepareJoin" name="两支各一token汇合">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </parallelGateway>
+        <endEvent id="prepEnd" name="两支完成">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </endEvent>
+        <exclusiveGateway id="materialsNeeded" name="材料明确需求">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </exclusiveGateway>
+        <serviceTask id="noPartsReady" name="无需配件 NOT_REQUIRED" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </serviceTask>
+        <exclusiveGateway id="resourceMerge" name="资源支路合并">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </exclusiveGateway>
+        <exclusiveGateway id="resourceResult" name="真实材料流程结果">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </exclusiveGateway>
+        <endEvent id="resourceBlockedEnd" name="资源业务阻塞">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          <errorEventDefinition errorRef="RESOURCE_BLOCKED" />
+        </endEvent>
+        <callActivity id="resourceCall" name="独立材料领用流程" calledElement="${materialDefinitionId}" flowable:calledElementType="id" flowable:useLocalScopeForOutParameters="true">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+          <extensionElements>
+            <flowable:in source="orderId" target="orderId" />
+            <flowable:in source="cycleId" target="cycleId" />
+            <flowable:in source="preparationEpoch" target="preparationEpoch" />
+            <flowable:in source="materialRequestId" target="materialRequestId" />
+            <flowable:out source="materialOutcome" target="resourceOutcome" />
+          </extensionElements>
+        </callActivity>
+        <sequenceFlow id="dormRepairV2_f50" sourceRef="prepStart" targetRef="prepareFork" />
+        <sequenceFlow id="dormRepairV2_f51" sourceRef="prepareFork" targetRef="appointmentNegotiation" />
+        <sequenceFlow id="dormRepairV2_f52" sourceRef="prepareFork" targetRef="materialsNeeded" />
+        <sequenceFlow id="dormRepairV2_f53" sourceRef="appointmentNegotiation" targetRef="prepareJoin" />
+        <sequenceFlow id="dormRepairV2_f54" sourceRef="prepareJoin" targetRef="prepEnd" />
+        <sequenceFlow id="dormRepairV2_f55" sourceRef="materialsNeeded" targetRef="noPartsReady">
+          <conditionExpression xsi:type="tFormalExpression">${materialMode == 'NONE'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f56" sourceRef="materialsNeeded" targetRef="resourceCall">
+          <conditionExpression xsi:type="tFormalExpression">${materialMode == 'KNOWN'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f57" sourceRef="materialsNeeded" targetRef="resourceBlockedEnd">
+          <conditionExpression xsi:type="tFormalExpression">${materialMode == 'UNKNOWN'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f58" sourceRef="noPartsReady" targetRef="resourceMerge" />
+        <sequenceFlow id="dormRepairV2_f59" sourceRef="resourceMerge" targetRef="prepareJoin" />
+        <sequenceFlow id="dormRepairV2_f60" sourceRef="resourceCall" targetRef="resourceResult" />
+        <sequenceFlow id="dormRepairV2_f61" sourceRef="resourceResult" targetRef="resourceMerge">
+          <conditionExpression xsi:type="tFormalExpression">${resourceOutcome == 'READY'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f62" sourceRef="resourceResult" targetRef="resourceBlockedEnd">
+          <conditionExpression xsi:type="tFormalExpression">${resourceOutcome == 'BLOCKED'}</conditionExpression>
+        </sequenceFlow>
+      </subProcess>
+      <serviceTask id="verifyPreparation" name="汇合后重验条件" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <exclusiveGateway id="readyRoute" name="仍满足开始条件">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <userTask id="startRepair" name="开始维修">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <subProcess id="repairExceptionHandling" name="维修异常处理">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        <startEvent id="repairStart" name="进入维修">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </startEvent>
+        <userTask id="performRepair" name="维修并提交结果或暂停">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </userTask>
+        <exclusiveGateway id="workRoute" name="当前维修操作">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </exclusiveGateway>
+        <endEvent id="repairFinished" name="已提交本轮结果">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </endEvent>
+        <serviceTask id="recordPause" name="记录暂停及SLA资源影响" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </serviceTask>
+        <userTask id="coordinateResume" name="协调恢复条件">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </userTask>
+        <exclusiveGateway id="resumeRoute" name="需重新准备">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </exclusiveGateway>
+        <serviceTask id="markReplan" name="标记REPLAN退出" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </serviceTask>
+        <endEvent id="repairReplanEnd" name="重新准备">
+          <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        </endEvent>
+        <sequenceFlow id="dormRepairV2_f71" sourceRef="repairStart" targetRef="performRepair" />
+        <sequenceFlow id="dormRepairV2_f72" sourceRef="performRepair" targetRef="workRoute" />
+        <sequenceFlow id="dormRepairV2_f73" sourceRef="workRoute" targetRef="repairFinished">
+          <conditionExpression xsi:type="tFormalExpression">${repairOutcome == 'FINISH'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f74" sourceRef="workRoute" targetRef="recordPause">
+          <conditionExpression xsi:type="tFormalExpression">${repairOutcome == 'PAUSE'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f75" sourceRef="recordPause" targetRef="coordinateResume" />
+        <sequenceFlow id="dormRepairV2_f76" sourceRef="coordinateResume" targetRef="resumeRoute" />
+        <sequenceFlow id="dormRepairV2_f77" sourceRef="resumeRoute" targetRef="performRepair">
+          <conditionExpression xsi:type="tFormalExpression">${resumeNeedsReplan == false}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f78" sourceRef="resumeRoute" targetRef="markReplan">
+          <conditionExpression xsi:type="tFormalExpression">${resumeNeedsReplan == true}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="dormRepairV2_f79" sourceRef="markReplan" targetRef="repairReplanEnd" />
+      </subProcess>
+      <exclusiveGateway id="repairOutcomeRoute" name="结果或重准备">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <userTask id="acceptance" name="责任人验收">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="acceptanceRoute" name="通过或返工">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <endEvent id="cycleCompleted" name="本工单完成">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <serviceTask id="newRound" name="追加返工轮次及提醒" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <serviceTask id="releaseForReplan" name="结束旧准备释放失效资源" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <serviceTask id="blockedCleanup" name="准备业务异常清理" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <userTask id="resourceCoordination" name="资源问题协调处理">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <serviceTask id="queueAcceptanceReminder" name="写幂等催办Outbox意图" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <endEvent id="reminderEnd" name="仅催办支路结束">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <sequenceFlow id="dormRepairV2_f30" sourceRef="cycleStart" targetRef="openEpoch" />
+      <sequenceFlow id="dormRepairV2_f31" sourceRef="openEpoch" targetRef="preparationScope" />
+      <sequenceFlow id="dormRepairV2_f32" sourceRef="preparationScope" targetRef="verifyPreparation" />
+      <sequenceFlow id="dormRepairV2_f33" sourceRef="verifyPreparation" targetRef="readyRoute" />
+      <sequenceFlow id="dormRepairV2_f34" sourceRef="readyRoute" targetRef="startRepair">
+        <conditionExpression xsi:type="tFormalExpression">${preparationValid == true}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f35" sourceRef="readyRoute" targetRef="releaseForReplan">
+        <conditionExpression xsi:type="tFormalExpression">${preparationValid == false}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f36" sourceRef="startRepair" targetRef="repairExceptionHandling" />
+      <sequenceFlow id="dormRepairV2_f37" sourceRef="repairExceptionHandling" targetRef="repairOutcomeRoute" />
+      <sequenceFlow id="dormRepairV2_f38" sourceRef="repairOutcomeRoute" targetRef="acceptance">
+        <conditionExpression xsi:type="tFormalExpression">${repairOutcome == 'FINISH'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f39" sourceRef="repairOutcomeRoute" targetRef="releaseForReplan">
+        <conditionExpression xsi:type="tFormalExpression">${repairOutcome == 'REPLAN'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f40" sourceRef="releaseForReplan" targetRef="openEpoch" />
+      <sequenceFlow id="dormRepairV2_f41" sourceRef="acceptance" targetRef="acceptanceRoute" />
+      <sequenceFlow id="dormRepairV2_f42" sourceRef="acceptanceRoute" targetRef="cycleCompleted">
+        <conditionExpression xsi:type="tFormalExpression">${acceptanceOutcome == 'ACCEPT'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f43" sourceRef="acceptanceRoute" targetRef="newRound">
+        <conditionExpression xsi:type="tFormalExpression">${acceptanceOutcome == 'REWORK'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f44" sourceRef="newRound" targetRef="openEpoch" />
+      <boundaryEvent id="resourceErrorBoundary" name="resourceErrorBoundary" attachedToRef="preparationScope" cancelActivity="true">
+        <errorEventDefinition errorRef="RESOURCE_BLOCKED" />
+      </boundaryEvent>
+      <sequenceFlow id="dormRepairV2_f45" sourceRef="resourceErrorBoundary" targetRef="blockedCleanup" />
+      <sequenceFlow id="dormRepairV2_f46" sourceRef="blockedCleanup" targetRef="resourceCoordination" />
+      <sequenceFlow id="dormRepairV2_f47" sourceRef="resourceCoordination" targetRef="openEpoch" />
+      <boundaryEvent id="acceptanceReminderBoundary" name="acceptanceReminderBoundary" attachedToRef="acceptance" cancelActivity="false">
+        <timerEventDefinition>
+          <timeDate>${acceptanceDueAt}</timeDate>
+        </timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="dormRepairV2_f48" sourceRef="acceptanceReminderBoundary" targetRef="queueAcceptanceReminder" />
+      <sequenceFlow id="dormRepairV2_f49" sourceRef="queueAcceptanceReminder" targetRef="reminderEnd" />
+    </subProcess>
+    <endEvent id="completedEnd" name="完成">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <endEvent id="rejectedEnd" name="驳回">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <subProcess id="publicLinkedScope" name="公共关联独立验收 V2.3">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      <startEvent id="publicStart" name="确认关联后的原单">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </startEvent>
+      <intermediateCatchEvent id="duplicateLinkedWait" name="等待主单实际结果消息">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        <messageEventDefinition messageRef="publicRepairResult" />
+      </intermediateCatchEvent>
+      <userTask id="publicAcceptance" name="原单本人独立验收">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <exclusiveGateway id="publicDecision" name="验收或争议">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </exclusiveGateway>
+      <endEvent id="publicAcceptedEnd" name="本人确认结束">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <userTask id="investigateDispute" name="管理员核查争议">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </userTask>
+      <serviceTask id="linkFollowupOrder" name="创建或关联后续处理工单" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <intermediateCatchEvent id="publicFollowupWait" name="等待后续处理结果">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+        <messageEventDefinition messageRef="publicFollowupResult" />
+      </intermediateCatchEvent>
+      <sequenceFlow id="dormRepairV2_f80" sourceRef="publicStart" targetRef="duplicateLinkedWait" />
+      <sequenceFlow id="dormRepairV2_f81" sourceRef="duplicateLinkedWait" targetRef="publicAcceptance" />
+      <sequenceFlow id="dormRepairV2_f82" sourceRef="publicAcceptance" targetRef="publicDecision" />
+      <sequenceFlow id="dormRepairV2_f83" sourceRef="publicDecision" targetRef="publicAcceptedEnd">
+        <conditionExpression xsi:type="tFormalExpression">${publicAcceptanceOutcome == 'ACCEPT'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f84" sourceRef="publicDecision" targetRef="investigateDispute">
+        <conditionExpression xsi:type="tFormalExpression">${publicAcceptanceOutcome == 'REWORK'}</conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="dormRepairV2_f85" sourceRef="investigateDispute" targetRef="linkFollowupOrder" />
+      <sequenceFlow id="dormRepairV2_f86" sourceRef="linkFollowupOrder" targetRef="publicFollowupWait" />
+      <sequenceFlow id="dormRepairV2_f87" sourceRef="publicFollowupWait" targetRef="publicAcceptance" />
+      <serviceTask id="queuePublicReminder" name="公共原单独立验收催办意图" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </serviceTask>
+      <endEvent id="publicReminderEnd" name="仅公共催办支路结束">
+        <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+      </endEvent>
+      <boundaryEvent id="publicAcceptanceReminderBoundary" name="publicAcceptanceReminderBoundary" attachedToRef="publicAcceptance" cancelActivity="false">
+        <timerEventDefinition>
+          <timeDate>${publicAcceptanceDueAt}</timeDate>
+        </timerEventDefinition>
+      </boundaryEvent>
+      <sequenceFlow id="dormRepairV2_f88" sourceRef="publicAcceptanceReminderBoundary" targetRef="queuePublicReminder" />
+      <sequenceFlow id="dormRepairV2_f89" sourceRef="queuePublicReminder" targetRef="publicReminderEnd" />
+    </subProcess>
+    <serviceTask id="unlinkCleanup" name="解绑关联并作废旧epoch" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <serviceTask id="transferCleanup" name="取消资源并检查实发" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <exclusiveGateway id="settlementRoute" name="材料待核对">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </exclusiveGateway>
+    <userTask id="settlementTask" name="实发交接或退料核对">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </userTask>
+    <serviceTask id="cancelCleanup" name="撤回清理" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <endEvent id="cancelledEnd" name="撤回结束">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </endEvent>
+    <sequenceFlow id="dormRepairV2_f1" sourceRef="submitStart" targetRef="reviewScope" />
+    <sequenceFlow id="dormRepairV2_f2" sourceRef="reviewScope" targetRef="reviewRoute" />
+    <sequenceFlow id="dormRepairV2_f3" sourceRef="reviewRoute" targetRef="rejectedEnd">
+      <conditionExpression xsi:type="tFormalExpression">${reviewOutcome == 'REJECT'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f4" sourceRef="reviewRoute" targetRef="modeRoute">
+      <conditionExpression xsi:type="tFormalExpression">${reviewOutcome == 'APPROVE'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f5" sourceRef="modeRoute" targetRef="dispatch">
+      <conditionExpression xsi:type="tFormalExpression">${publicLinked == false}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f6" sourceRef="modeRoute" targetRef="publicLinkedScope">
+      <conditionExpression xsi:type="tFormalExpression">${publicLinked == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f7" sourceRef="dispatch" targetRef="workerAccept" />
+    <sequenceFlow id="dormRepairV2_f8" sourceRef="workerAccept" targetRef="workerRoute" />
+    <sequenceFlow id="dormRepairV2_f9" sourceRef="workerRoute" targetRef="dispatch">
+      <conditionExpression xsi:type="tFormalExpression">${workerOutcome == 'REFUSE'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f10" sourceRef="workerRoute" targetRef="workCycle">
+      <conditionExpression xsi:type="tFormalExpression">${workerOutcome == 'ACCEPT'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f11" sourceRef="workCycle" targetRef="completedEnd" />
+    <sequenceFlow id="dormRepairV2_f12" sourceRef="publicLinkedScope" targetRef="completedEnd" />
+    <boundaryEvent id="withdrawBoundary" name="withdrawBoundary" attachedToRef="reviewScope" cancelActivity="true">
+      <messageEventDefinition messageRef="withdrawOrder" />
+    </boundaryEvent>
+    <sequenceFlow id="dormRepairV2_f13" sourceRef="withdrawBoundary" targetRef="cancelCleanup" />
+    <sequenceFlow id="dormRepairV2_f14" sourceRef="cancelCleanup" targetRef="cancelledEnd" />
+    <boundaryEvent id="transferBoundary" name="transferBoundary" attachedToRef="workCycle" cancelActivity="true">
+      <messageEventDefinition messageRef="transferOrder" />
+    </boundaryEvent>
+    <sequenceFlow id="dormRepairV2_f15" sourceRef="transferBoundary" targetRef="transferCleanup" />
+    <sequenceFlow id="dormRepairV2_f16" sourceRef="transferCleanup" targetRef="settlementRoute" />
+    <sequenceFlow id="dormRepairV2_f17" sourceRef="settlementRoute" targetRef="settlementTask">
+      <conditionExpression xsi:type="tFormalExpression">${settlementRequired == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f18" sourceRef="settlementRoute" targetRef="dispatch">
+      <conditionExpression xsi:type="tFormalExpression">${settlementRequired == false}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dormRepairV2_f19" sourceRef="settlementTask" targetRef="dispatch" />
+    <boundaryEvent id="unlinkBoundary" name="unlinkBoundary" attachedToRef="publicLinkedScope" cancelActivity="true">
+      <messageEventDefinition messageRef="unlinkPublic" />
+    </boundaryEvent>
+    <sequenceFlow id="dormRepairV2_f20" sourceRef="unlinkBoundary" targetRef="unlinkCleanup" />
+    <sequenceFlow id="dormRepairV2_f21" sourceRef="unlinkCleanup" targetRef="dispatch" />
+    <serviceTask id="activatePublicLink" name="校验本人同意与关联epoch" flowable:delegateExpression="${r2ReviewOnlyDelegate}">
+      <documentation>R2 review node. Future service validates identity, order/task version, cycle and epoch. No runtime behavior is claimed.</documentation>
+    </serviceTask>
+    <boundaryEvent id="linkPublicBoundary" name="linkPublicBoundary" attachedToRef="dispatch" cancelActivity="true">
+      <messageEventDefinition messageRef="linkPublicOrder" />
+    </boundaryEvent>
+    <sequenceFlow id="dormRepairV2_f22" sourceRef="linkPublicBoundary" targetRef="activatePublicLink" />
+    <sequenceFlow id="dormRepairV2_f23" sourceRef="activatePublicLink" targetRef="publicLinkedScope" />
+  </process>
+  <message id="withdrawOrder" name="withdrawOrder" />
+  <message id="transferOrder" name="transferOrder" />
+  <message id="unlinkPublic" name="unlinkPublic" />
+  <message id="publicRepairResult" name="publicRepairResult" />
+  <message id="publicFollowupResult" name="publicFollowupResult" />
+  <message id="linkPublicOrder" name="linkPublicOrder" />
+  <error id="RESOURCE_BLOCKED" errorCode="RESOURCE_BLOCKED" />
+  <bpmndi:BPMNDiagram id="dormRepairV2_diagram">
+    <bpmndi:BPMNPlane id="dormRepairV2_plane" bpmnElement="dormRepairV2">
+      <bpmndi:BPMNShape id="submitStart_di" bpmnElement="submitStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reviewScope_di" bpmnElement="reviewScope" isExpanded="false">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reviewRoute_di" bpmnElement="reviewRoute">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="modeRoute_di" bpmnElement="modeRoute">
+        <dc:Bounds x="1040" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="dispatch_di" bpmnElement="dispatch">
+        <dc:Bounds x="1360" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="workerAccept_di" bpmnElement="workerAccept">
+        <dc:Bounds x="1680" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="workerRoute_di" bpmnElement="workerRoute">
+        <dc:Bounds x="2000" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="workCycle_di" bpmnElement="workCycle" isExpanded="false">
+        <dc:Bounds x="2320" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="completedEnd_di" bpmnElement="completedEnd">
+        <dc:Bounds x="2640" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rejectedEnd_di" bpmnElement="rejectedEnd">
+        <dc:Bounds x="720" y="320" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicLinkedScope_di" bpmnElement="publicLinkedScope" isExpanded="false">
+        <dc:Bounds x="1040" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="unlinkCleanup_di" bpmnElement="unlinkCleanup">
+        <dc:Bounds x="1360" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="transferCleanup_di" bpmnElement="transferCleanup">
+        <dc:Bounds x="2320" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="settlementRoute_di" bpmnElement="settlementRoute">
+        <dc:Bounds x="2000" y="560" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="settlementTask_di" bpmnElement="settlementTask">
+        <dc:Bounds x="1680" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="cancelCleanup_di" bpmnElement="cancelCleanup">
+        <dc:Bounds x="400" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="cancelledEnd_di" bpmnElement="cancelledEnd">
+        <dc:Bounds x="80" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="withdrawBoundary_di" bpmnElement="withdrawBoundary">
+        <dc:Bounds x="520" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="transferBoundary_di" bpmnElement="transferBoundary">
+        <dc:Bounds x="2440" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="unlinkBoundary_di" bpmnElement="unlinkBoundary">
+        <dc:Bounds x="1160" y="620" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="activatePublicLink_di" bpmnElement="activatePublicLink">
+        <dc:Bounds x="1360" y="1040" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="linkPublicBoundary_di" bpmnElement="linkPublicBoundary">
+        <dc:Bounds x="1480" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f1_di" bpmnElement="dormRepairV2_f1">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f2_di" bpmnElement="dormRepairV2_f2">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f3_di" bpmnElement="dormRepairV2_f3">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="300" />
+        <di:waypoint x="680" y="300" />
+        <di:waypoint x="680" y="340" />
+        <di:waypoint x="720" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f4_di" bpmnElement="dormRepairV2_f4">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f5_di" bpmnElement="dormRepairV2_f5">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f6_di" bpmnElement="dormRepairV2_f6">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1160" y="120" />
+        <di:waypoint x="1160" y="540" />
+        <di:waypoint x="1000" y="540" />
+        <di:waypoint x="1000" y="600" />
+        <di:waypoint x="1040" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f7_di" bpmnElement="dormRepairV2_f7">
+        <di:waypoint x="1520" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f8_di" bpmnElement="dormRepairV2_f8">
+        <di:waypoint x="1840" y="120" />
+        <di:waypoint x="2000" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f9_di" bpmnElement="dormRepairV2_f9">
+        <di:waypoint x="2080" y="120" />
+        <di:waypoint x="2120" y="120" />
+        <di:waypoint x="2120" y="60" />
+        <di:waypoint x="1320" y="60" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f10_di" bpmnElement="dormRepairV2_f10">
+        <di:waypoint x="2080" y="120" />
+        <di:waypoint x="2320" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f11_di" bpmnElement="dormRepairV2_f11">
+        <di:waypoint x="2480" y="120" />
+        <di:waypoint x="2600" y="120" />
+        <di:waypoint x="2600" y="100" />
+        <di:waypoint x="2640" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f12_di" bpmnElement="dormRepairV2_f12">
+        <di:waypoint x="1200" y="600" />
+        <di:waypoint x="1240" y="600" />
+        <di:waypoint x="1240" y="200" />
+        <di:waypoint x="2600" y="200" />
+        <di:waypoint x="2600" y="100" />
+        <di:waypoint x="2640" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f13_di" bpmnElement="dormRepairV2_f13">
+        <di:waypoint x="540" y="180" />
+        <di:waypoint x="540" y="220" />
+        <di:waypoint x="360" y="220" />
+        <di:waypoint x="360" y="600" />
+        <di:waypoint x="400" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f14_di" bpmnElement="dormRepairV2_f14">
+        <di:waypoint x="560" y="600" />
+        <di:waypoint x="600" y="600" />
+        <di:waypoint x="600" y="540" />
+        <di:waypoint x="40" y="540" />
+        <di:waypoint x="40" y="580" />
+        <di:waypoint x="80" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f15_di" bpmnElement="dormRepairV2_f15">
+        <di:waypoint x="2460" y="180" />
+        <di:waypoint x="2460" y="220" />
+        <di:waypoint x="2280" y="220" />
+        <di:waypoint x="2280" y="600" />
+        <di:waypoint x="2320" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f16_di" bpmnElement="dormRepairV2_f16">
+        <di:waypoint x="2480" y="600" />
+        <di:waypoint x="2520" y="600" />
+        <di:waypoint x="2520" y="660" />
+        <di:waypoint x="1960" y="660" />
+        <di:waypoint x="1960" y="600" />
+        <di:waypoint x="2000" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f17_di" bpmnElement="dormRepairV2_f17">
+        <di:waypoint x="2080" y="600" />
+        <di:waypoint x="2120" y="600" />
+        <di:waypoint x="2120" y="660" />
+        <di:waypoint x="1640" y="660" />
+        <di:waypoint x="1640" y="600" />
+        <di:waypoint x="1680" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f18_di" bpmnElement="dormRepairV2_f18">
+        <di:waypoint x="2080" y="600" />
+        <di:waypoint x="2120" y="600" />
+        <di:waypoint x="2120" y="200" />
+        <di:waypoint x="1320" y="200" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f19_di" bpmnElement="dormRepairV2_f19">
+        <di:waypoint x="1840" y="600" />
+        <di:waypoint x="1880" y="600" />
+        <di:waypoint x="1880" y="200" />
+        <di:waypoint x="1320" y="200" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f20_di" bpmnElement="dormRepairV2_f20">
+        <di:waypoint x="1180" y="660" />
+        <di:waypoint x="1180" y="700" />
+        <di:waypoint x="1320" y="700" />
+        <di:waypoint x="1320" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f21_di" bpmnElement="dormRepairV2_f21">
+        <di:waypoint x="1520" y="600" />
+        <di:waypoint x="1560" y="600" />
+        <di:waypoint x="1560" y="200" />
+        <di:waypoint x="1320" y="200" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f22_di" bpmnElement="dormRepairV2_f22">
+        <di:waypoint x="1500" y="180" />
+        <di:waypoint x="1500" y="220" />
+        <di:waypoint x="1320" y="220" />
+        <di:waypoint x="1320" y="1080" />
+        <di:waypoint x="1360" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f23_di" bpmnElement="dormRepairV2_f23">
+        <di:waypoint x="1520" y="1080" />
+        <di:waypoint x="1560" y="1080" />
+        <di:waypoint x="1560" y="680" />
+        <di:waypoint x="1000" y="680" />
+        <di:waypoint x="1000" y="600" />
+        <di:waypoint x="1040" y="600" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="reviewScope_diagram">
+    <bpmndi:BPMNPlane id="reviewScope_plane" bpmnElement="reviewScope">
+      <bpmndi:BPMNShape id="reviewStart_di" bpmnElement="reviewStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="review_di" bpmnElement="review">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reviewDecision_di" bpmnElement="reviewDecision">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reviewApproved_di" bpmnElement="reviewApproved">
+        <dc:Bounds x="1040" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reviewRejected_di" bpmnElement="reviewRejected">
+        <dc:Bounds x="1040" y="320" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="supplement_di" bpmnElement="supplement">
+        <dc:Bounds x="400" y="320" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f24_di" bpmnElement="dormRepairV2_f24">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f25_di" bpmnElement="dormRepairV2_f25">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f26_di" bpmnElement="dormRepairV2_f26">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1000" y="120" />
+        <di:waypoint x="1000" y="100" />
+        <di:waypoint x="1040" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f27_di" bpmnElement="dormRepairV2_f27">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="340" />
+        <di:waypoint x="1040" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f28_di" bpmnElement="dormRepairV2_f28">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="300" />
+        <di:waypoint x="360" y="300" />
+        <di:waypoint x="360" y="360" />
+        <di:waypoint x="400" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f29_di" bpmnElement="dormRepairV2_f29">
+        <di:waypoint x="560" y="360" />
+        <di:waypoint x="600" y="360" />
+        <di:waypoint x="600" y="180" />
+        <di:waypoint x="360" y="180" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="workCycle_diagram">
+    <bpmndi:BPMNPlane id="workCycle_plane" bpmnElement="workCycle">
+      <bpmndi:BPMNShape id="cycleStart_di" bpmnElement="cycleStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="openEpoch_di" bpmnElement="openEpoch">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="preparationScope_di" bpmnElement="preparationScope" isExpanded="false">
+        <dc:Bounds x="720" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="verifyPreparation_di" bpmnElement="verifyPreparation">
+        <dc:Bounds x="1040" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="readyRoute_di" bpmnElement="readyRoute">
+        <dc:Bounds x="1360" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="startRepair_di" bpmnElement="startRepair">
+        <dc:Bounds x="1680" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="repairExceptionHandling_di" bpmnElement="repairExceptionHandling" isExpanded="false">
+        <dc:Bounds x="2000" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="repairOutcomeRoute_di" bpmnElement="repairOutcomeRoute">
+        <dc:Bounds x="2320" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="acceptance_di" bpmnElement="acceptance">
+        <dc:Bounds x="2640" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="acceptanceRoute_di" bpmnElement="acceptanceRoute">
+        <dc:Bounds x="2960" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="cycleCompleted_di" bpmnElement="cycleCompleted">
+        <dc:Bounds x="3280" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="newRound_di" bpmnElement="newRound">
+        <dc:Bounds x="2960" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="releaseForReplan_di" bpmnElement="releaseForReplan">
+        <dc:Bounds x="1360" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="blockedCleanup_di" bpmnElement="blockedCleanup">
+        <dc:Bounds x="720" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceCoordination_di" bpmnElement="resourceCoordination">
+        <dc:Bounds x="400" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="queueAcceptanceReminder_di" bpmnElement="queueAcceptanceReminder">
+        <dc:Bounds x="2640" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reminderEnd_di" bpmnElement="reminderEnd">
+        <dc:Bounds x="2320" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceErrorBoundary_di" bpmnElement="resourceErrorBoundary">
+        <dc:Bounds x="840" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="acceptanceReminderBoundary_di" bpmnElement="acceptanceReminderBoundary">
+        <dc:Bounds x="2760" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f30_di" bpmnElement="dormRepairV2_f30">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f31_di" bpmnElement="dormRepairV2_f31">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f32_di" bpmnElement="dormRepairV2_f32">
+        <di:waypoint x="880" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f33_di" bpmnElement="dormRepairV2_f33">
+        <di:waypoint x="1200" y="120" />
+        <di:waypoint x="1360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f34_di" bpmnElement="dormRepairV2_f34">
+        <di:waypoint x="1440" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f35_di" bpmnElement="dormRepairV2_f35">
+        <di:waypoint x="1440" y="120" />
+        <di:waypoint x="1480" y="120" />
+        <di:waypoint x="1480" y="540" />
+        <di:waypoint x="1320" y="540" />
+        <di:waypoint x="1320" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f36_di" bpmnElement="dormRepairV2_f36">
+        <di:waypoint x="1840" y="120" />
+        <di:waypoint x="2000" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f37_di" bpmnElement="dormRepairV2_f37">
+        <di:waypoint x="2160" y="120" />
+        <di:waypoint x="2320" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f38_di" bpmnElement="dormRepairV2_f38">
+        <di:waypoint x="2400" y="120" />
+        <di:waypoint x="2640" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f39_di" bpmnElement="dormRepairV2_f39">
+        <di:waypoint x="2400" y="120" />
+        <di:waypoint x="2440" y="120" />
+        <di:waypoint x="2440" y="540" />
+        <di:waypoint x="1320" y="540" />
+        <di:waypoint x="1320" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f40_di" bpmnElement="dormRepairV2_f40">
+        <di:waypoint x="1520" y="600" />
+        <di:waypoint x="1560" y="600" />
+        <di:waypoint x="1560" y="200" />
+        <di:waypoint x="360" y="200" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f41_di" bpmnElement="dormRepairV2_f41">
+        <di:waypoint x="2800" y="120" />
+        <di:waypoint x="2960" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f42_di" bpmnElement="dormRepairV2_f42">
+        <di:waypoint x="3040" y="120" />
+        <di:waypoint x="3240" y="120" />
+        <di:waypoint x="3240" y="100" />
+        <di:waypoint x="3280" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f43_di" bpmnElement="dormRepairV2_f43">
+        <di:waypoint x="3040" y="120" />
+        <di:waypoint x="3080" y="120" />
+        <di:waypoint x="3080" y="540" />
+        <di:waypoint x="2920" y="540" />
+        <di:waypoint x="2920" y="600" />
+        <di:waypoint x="2960" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f44_di" bpmnElement="dormRepairV2_f44">
+        <di:waypoint x="3120" y="600" />
+        <di:waypoint x="3160" y="600" />
+        <di:waypoint x="3160" y="200" />
+        <di:waypoint x="360" y="200" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f45_di" bpmnElement="dormRepairV2_f45">
+        <di:waypoint x="860" y="180" />
+        <di:waypoint x="860" y="220" />
+        <di:waypoint x="680" y="220" />
+        <di:waypoint x="680" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f46_di" bpmnElement="dormRepairV2_f46">
+        <di:waypoint x="880" y="600" />
+        <di:waypoint x="920" y="600" />
+        <di:waypoint x="920" y="660" />
+        <di:waypoint x="360" y="660" />
+        <di:waypoint x="360" y="600" />
+        <di:waypoint x="400" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f47_di" bpmnElement="dormRepairV2_f47">
+        <di:waypoint x="560" y="600" />
+        <di:waypoint x="600" y="600" />
+        <di:waypoint x="600" y="180" />
+        <di:waypoint x="360" y="180" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f48_di" bpmnElement="dormRepairV2_f48">
+        <di:waypoint x="2780" y="180" />
+        <di:waypoint x="2780" y="220" />
+        <di:waypoint x="2600" y="220" />
+        <di:waypoint x="2600" y="600" />
+        <di:waypoint x="2640" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f49_di" bpmnElement="dormRepairV2_f49">
+        <di:waypoint x="2800" y="600" />
+        <di:waypoint x="2840" y="600" />
+        <di:waypoint x="2840" y="540" />
+        <di:waypoint x="2280" y="540" />
+        <di:waypoint x="2280" y="580" />
+        <di:waypoint x="2320" y="580" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="publicLinkedScope_diagram">
+    <bpmndi:BPMNPlane id="publicLinkedScope_plane" bpmnElement="publicLinkedScope">
+      <bpmndi:BPMNShape id="publicStart_di" bpmnElement="publicStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="duplicateLinkedWait_di" bpmnElement="duplicateLinkedWait">
+        <dc:Bounds x="400" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicAcceptance_di" bpmnElement="publicAcceptance">
+        <dc:Bounds x="720" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicDecision_di" bpmnElement="publicDecision">
+        <dc:Bounds x="1040" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicAcceptedEnd_di" bpmnElement="publicAcceptedEnd">
+        <dc:Bounds x="1360" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="investigateDispute_di" bpmnElement="investigateDispute">
+        <dc:Bounds x="1040" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="linkFollowupOrder_di" bpmnElement="linkFollowupOrder">
+        <dc:Bounds x="720" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicFollowupWait_di" bpmnElement="publicFollowupWait">
+        <dc:Bounds x="400" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="queuePublicReminder_di" bpmnElement="queuePublicReminder">
+        <dc:Bounds x="720" y="1040" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicReminderEnd_di" bpmnElement="publicReminderEnd">
+        <dc:Bounds x="400" y="1040" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publicAcceptanceReminderBoundary_di" bpmnElement="publicAcceptanceReminderBoundary">
+        <dc:Bounds x="840" y="140" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f80_di" bpmnElement="dormRepairV2_f80">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="400" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f81_di" bpmnElement="dormRepairV2_f81">
+        <di:waypoint x="440" y="100" />
+        <di:waypoint x="680" y="100" />
+        <di:waypoint x="680" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f82_di" bpmnElement="dormRepairV2_f82">
+        <di:waypoint x="880" y="120" />
+        <di:waypoint x="1040" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f83_di" bpmnElement="dormRepairV2_f83">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1320" y="120" />
+        <di:waypoint x="1320" y="100" />
+        <di:waypoint x="1360" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f84_di" bpmnElement="dormRepairV2_f84">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1160" y="120" />
+        <di:waypoint x="1160" y="540" />
+        <di:waypoint x="1000" y="540" />
+        <di:waypoint x="1000" y="600" />
+        <di:waypoint x="1040" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f85_di" bpmnElement="dormRepairV2_f85">
+        <di:waypoint x="1200" y="600" />
+        <di:waypoint x="1240" y="600" />
+        <di:waypoint x="1240" y="660" />
+        <di:waypoint x="680" y="660" />
+        <di:waypoint x="680" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f86_di" bpmnElement="dormRepairV2_f86">
+        <di:waypoint x="880" y="600" />
+        <di:waypoint x="920" y="600" />
+        <di:waypoint x="920" y="540" />
+        <di:waypoint x="360" y="540" />
+        <di:waypoint x="360" y="580" />
+        <di:waypoint x="400" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f87_di" bpmnElement="dormRepairV2_f87">
+        <di:waypoint x="440" y="580" />
+        <di:waypoint x="480" y="580" />
+        <di:waypoint x="480" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f88_di" bpmnElement="dormRepairV2_f88">
+        <di:waypoint x="860" y="180" />
+        <di:waypoint x="860" y="220" />
+        <di:waypoint x="680" y="220" />
+        <di:waypoint x="680" y="1080" />
+        <di:waypoint x="720" y="1080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f89_di" bpmnElement="dormRepairV2_f89">
+        <di:waypoint x="880" y="1080" />
+        <di:waypoint x="920" y="1080" />
+        <di:waypoint x="920" y="1020" />
+        <di:waypoint x="360" y="1020" />
+        <di:waypoint x="360" y="1060" />
+        <di:waypoint x="400" y="1060" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="preparationScope_diagram">
+    <bpmndi:BPMNPlane id="preparationScope_plane" bpmnElement="preparationScope">
+      <bpmndi:BPMNShape id="prepStart_di" bpmnElement="prepStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="prepareFork_di" bpmnElement="prepareFork">
+        <dc:Bounds x="400" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="appointmentNegotiation_di" bpmnElement="appointmentNegotiation" isExpanded="false">
+        <dc:Bounds x="720" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="prepareJoin_di" bpmnElement="prepareJoin">
+        <dc:Bounds x="1680" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="prepEnd_di" bpmnElement="prepEnd">
+        <dc:Bounds x="2000" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="materialsNeeded_di" bpmnElement="materialsNeeded">
+        <dc:Bounds x="720" y="560" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="noPartsReady_di" bpmnElement="noPartsReady">
+        <dc:Bounds x="1040" y="320" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceMerge_di" bpmnElement="resourceMerge">
+        <dc:Bounds x="1680" y="560" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceResult_di" bpmnElement="resourceResult">
+        <dc:Bounds x="1360" y="800" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceBlockedEnd_di" bpmnElement="resourceBlockedEnd">
+        <dc:Bounds x="1680" y="1040" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resourceCall_di" bpmnElement="resourceCall">
+        <dc:Bounds x="1040" y="800" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f50_di" bpmnElement="dormRepairV2_f50">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f51_di" bpmnElement="dormRepairV2_f51">
+        <di:waypoint x="480" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f52_di" bpmnElement="dormRepairV2_f52">
+        <di:waypoint x="480" y="120" />
+        <di:waypoint x="520" y="120" />
+        <di:waypoint x="520" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f53_di" bpmnElement="dormRepairV2_f53">
+        <di:waypoint x="880" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f54_di" bpmnElement="dormRepairV2_f54">
+        <di:waypoint x="1760" y="120" />
+        <di:waypoint x="1960" y="120" />
+        <di:waypoint x="1960" y="100" />
+        <di:waypoint x="2000" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f55_di" bpmnElement="dormRepairV2_f55">
+        <di:waypoint x="800" y="600" />
+        <di:waypoint x="840" y="600" />
+        <di:waypoint x="840" y="360" />
+        <di:waypoint x="1040" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f56_di" bpmnElement="dormRepairV2_f56">
+        <di:waypoint x="800" y="600" />
+        <di:waypoint x="840" y="600" />
+        <di:waypoint x="840" y="840" />
+        <di:waypoint x="1040" y="840" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f57_di" bpmnElement="dormRepairV2_f57">
+        <di:waypoint x="800" y="600" />
+        <di:waypoint x="1640" y="600" />
+        <di:waypoint x="1640" y="1060" />
+        <di:waypoint x="1680" y="1060" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f58_di" bpmnElement="dormRepairV2_f58">
+        <di:waypoint x="1200" y="360" />
+        <di:waypoint x="1640" y="360" />
+        <di:waypoint x="1640" y="600" />
+        <di:waypoint x="1680" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f59_di" bpmnElement="dormRepairV2_f59">
+        <di:waypoint x="1760" y="600" />
+        <di:waypoint x="1800" y="600" />
+        <di:waypoint x="1800" y="180" />
+        <di:waypoint x="1640" y="180" />
+        <di:waypoint x="1640" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f60_di" bpmnElement="dormRepairV2_f60">
+        <di:waypoint x="1200" y="840" />
+        <di:waypoint x="1360" y="840" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f61_di" bpmnElement="dormRepairV2_f61">
+        <di:waypoint x="1440" y="840" />
+        <di:waypoint x="1480" y="840" />
+        <di:waypoint x="1480" y="600" />
+        <di:waypoint x="1680" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f62_di" bpmnElement="dormRepairV2_f62">
+        <di:waypoint x="1440" y="840" />
+        <di:waypoint x="1480" y="840" />
+        <di:waypoint x="1480" y="1060" />
+        <di:waypoint x="1680" y="1060" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="repairExceptionHandling_diagram">
+    <bpmndi:BPMNPlane id="repairExceptionHandling_plane" bpmnElement="repairExceptionHandling">
+      <bpmndi:BPMNShape id="repairStart_di" bpmnElement="repairStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="performRepair_di" bpmnElement="performRepair">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="workRoute_di" bpmnElement="workRoute">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="repairFinished_di" bpmnElement="repairFinished">
+        <dc:Bounds x="1040" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="recordPause_di" bpmnElement="recordPause">
+        <dc:Bounds x="720" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="coordinateResume_di" bpmnElement="coordinateResume">
+        <dc:Bounds x="1040" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="resumeRoute_di" bpmnElement="resumeRoute">
+        <dc:Bounds x="1360" y="560" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="markReplan_di" bpmnElement="markReplan">
+        <dc:Bounds x="1680" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="repairReplanEnd_di" bpmnElement="repairReplanEnd">
+        <dc:Bounds x="2000" y="560" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f71_di" bpmnElement="dormRepairV2_f71">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f72_di" bpmnElement="dormRepairV2_f72">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f73_di" bpmnElement="dormRepairV2_f73">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1000" y="120" />
+        <di:waypoint x="1000" y="100" />
+        <di:waypoint x="1040" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f74_di" bpmnElement="dormRepairV2_f74">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="540" />
+        <di:waypoint x="680" y="540" />
+        <di:waypoint x="680" y="600" />
+        <di:waypoint x="720" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f75_di" bpmnElement="dormRepairV2_f75">
+        <di:waypoint x="880" y="600" />
+        <di:waypoint x="1040" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f76_di" bpmnElement="dormRepairV2_f76">
+        <di:waypoint x="1200" y="600" />
+        <di:waypoint x="1360" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f77_di" bpmnElement="dormRepairV2_f77">
+        <di:waypoint x="1440" y="600" />
+        <di:waypoint x="1480" y="600" />
+        <di:waypoint x="1480" y="180" />
+        <di:waypoint x="360" y="180" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f78_di" bpmnElement="dormRepairV2_f78">
+        <di:waypoint x="1440" y="600" />
+        <di:waypoint x="1680" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f79_di" bpmnElement="dormRepairV2_f79">
+        <di:waypoint x="1840" y="600" />
+        <di:waypoint x="1960" y="600" />
+        <di:waypoint x="1960" y="580" />
+        <di:waypoint x="2000" y="580" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="appointmentNegotiation_diagram">
+    <bpmndi:BPMNPlane id="appointmentNegotiation_plane" bpmnElement="appointmentNegotiation">
+      <bpmndi:BPMNShape id="apptStart_di" bpmnElement="apptStart">
+        <dc:Bounds x="80" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="proposeAppointment_di" bpmnElement="proposeAppointment">
+        <dc:Bounds x="400" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="consentNeeded_di" bpmnElement="consentNeeded">
+        <dc:Bounds x="720" y="80" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="studentConsent_di" bpmnElement="studentConsent">
+        <dc:Bounds x="1040" y="320" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="consentRoute_di" bpmnElement="consentRoute">
+        <dc:Bounds x="1360" y="320" width="80" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="confirmAppointment_di" bpmnElement="confirmAppointment">
+        <dc:Bounds x="1680" y="80" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="apptEnd_di" bpmnElement="apptEnd">
+        <dc:Bounds x="2000" y="80" width="40" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="dormRepairV2_f63_di" bpmnElement="dormRepairV2_f63">
+        <di:waypoint x="120" y="100" />
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f64_di" bpmnElement="dormRepairV2_f64">
+        <di:waypoint x="560" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f65_di" bpmnElement="dormRepairV2_f65">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f66_di" bpmnElement="dormRepairV2_f66">
+        <di:waypoint x="800" y="120" />
+        <di:waypoint x="840" y="120" />
+        <di:waypoint x="840" y="360" />
+        <di:waypoint x="1040" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f67_di" bpmnElement="dormRepairV2_f67">
+        <di:waypoint x="1200" y="360" />
+        <di:waypoint x="1360" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f68_di" bpmnElement="dormRepairV2_f68">
+        <di:waypoint x="1440" y="360" />
+        <di:waypoint x="1480" y="360" />
+        <di:waypoint x="1480" y="120" />
+        <di:waypoint x="1680" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f69_di" bpmnElement="dormRepairV2_f69">
+        <di:waypoint x="1440" y="360" />
+        <di:waypoint x="1480" y="360" />
+        <di:waypoint x="1480" y="180" />
+        <di:waypoint x="360" y="180" />
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="dormRepairV2_f70_di" bpmnElement="dormRepairV2_f70">
+        <di:waypoint x="1840" y="120" />
+        <di:waypoint x="1960" y="120" />
+        <di:waypoint x="1960" y="100" />
+        <di:waypoint x="2000" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
