@@ -12,7 +12,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(properties={
- "spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_flowable_a_test_20261123",
+ "spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_v2_test_v1",
  "spring.datasource.username=${FLOWABLE_TEST_DB_USER:sota}", "spring.datasource.password=${FLOWABLE_TEST_DB_PASSWORD:}",
  "app.jwt.secret=stage-a-test-only-secret-at-least-32-bytes",
  "flowable.process.enabled=true", "flowable.database-schema-update=true",

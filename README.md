@@ -104,3 +104,7 @@ V2设计仅在独立feature/v2-development分支docs/v2-design/；V1.1稳定标�
 R2设计本地标签v2-design-r2。V2仅在独立开发分支；本阶段是迁移/测试/接口公共基础，不包含RBAC等业务。
 
 运行与测试见[隔离环境说明](docs/v2-development/V2.0-A-SETUP.md)，原理见[迁移机制](docs/v2-development/V2.0-A-MIGRATIONS.md)。使用18081和明确v2_dev/v2_test库，不停止8080/18080，不执行正式迁移。
+
+## V2.0-B 动态身份与用户管理
+
+V2.0-A本地归档标签v2.0-a-foundation。B阶段接口见[V2.0-B-API.md](V2.0-B-API.md)，首个合成管理员须按[初始化说明](docs/v2-development/V2.0-B-INITIALIZATION.md)显式创建，没有默认密码。scripts/test-v2.ps1同时运行原99项与B阶段新增验收，均使用V2隔离测试库。

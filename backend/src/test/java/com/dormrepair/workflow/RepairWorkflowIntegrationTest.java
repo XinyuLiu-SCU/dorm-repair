@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
-@SpringBootTest(properties={"spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_flowable_a_test_20261123",
+@SpringBootTest(properties={"spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_v2_test_v1",
  "spring.datasource.username=${FLOWABLE_TEST_DB_USER:sota}", "spring.datasource.password=${FLOWABLE_TEST_DB_PASSWORD:}",
  "app.jwt.secret=stage-b-test-only-secret-at-least-32-bytes", "app.workflow.enabled=true",
  "flowable.process.enabled=true", "flowable.database-schema-update=true", "flowable.history-level=audit"})

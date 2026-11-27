@@ -1,0 +1,75 @@
+package com.dormrepair.v2.identity;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import com.dormrepair.service.AuthService.LoginResult;
+import com.dormrepair.v2.platform.api.*;
+
+@Service
+@ConditionalOnProperty(name="app.v2.enabled",havingValue="true")
+public class RbacService {
+ private final RbacRepository repo;private final RbacIdentity identity;private final SecurityAudit audit;private final PasswordEncoder passwords;private final JwtEncoder encoder;private final long ttl;
+ public RbacService(RbacRepository repo,RbacIdentity identity,SecurityAudit audit,PasswordEncoder passwords,JwtEncoder encoder,@Value("${app.jwt.ttl-seconds:3600}") long ttl){this.repo=repo;this.identity=identity;this.audit=audit;this.passwords=passwords;this.encoder=encoder;this.ttl=ttl;if(ttl<1||ttl>86400)throw new IllegalArgumentException("Invalid JWT lifetime");}
+ @Transactional(isolation=Isolation.REPEATABLE_READ)
+ public LoginResult login(String username,String password){
+  var u=repo.byUsername(username).orElseThrow(RbacIdentity::unauthorized);
+  if(!u.enabled()||password==null||password.getBytes(StandardCharsets.UTF_8).length>72||!matches(password,u.passwordHash()))throw RbacIdentity.unauthorized();
+  var actor=new RbacIdentity.Identity(u,repo.permissions(u.id()));var now=Instant.now();
+  var claims=JwtClaimsSet.builder().issuer("dorm-repair").subject(Long.toString(u.id())).issuedAt(now).expiresAt(now.plusSeconds(ttl)).claim("username",u.username()).claim("authVersion",u.authVersion()).claim("scope",RbacIdentity.legacyScope(actor)).build();
+  audit.record(u.id(),"LOGIN_SUCCEEDED","USER",u.id(),Map.of("channel","PASSWORD"));
+  return new LoginResult(encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(),claims)).getTokenValue(),"Bearer",ttl);
+ }
+ private boolean matches(String plain,String hash){try{return hash!=null&&hash.startsWith("$2")&&passwords.matches(plain,hash);}catch(IllegalArgumentException e){return false;}}
+ private void passwordPolicy(String plain){if(plain==null||plain.codePointCount(0,plain.length())<12||plain.getBytes(StandardCharsets.UTF_8).length>72)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Password policy rejected");}
+ private RbacIdentity.Identity writeActor(String permission){repo.lockGuard();return identity.require(permission);}
+ private void version(long actual,Long expected){if(expected==null||expected<0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);if(actual!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"Version conflict");}
+ private void updated(int rows){if(rows!=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"Version conflict");}
+ private void lastManager(){if(repo.managers()==0)throw new ResponseStatusException(HttpStatus.CONFLICT,"The last effective manager must remain available");}
+ private void grantable(Set<String> actor,Set<String> target){if(!actor.containsAll(target))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Grant exceeds caller scope");}
+ private RbacRepository.User manageableUser(RbacIdentity.Identity actor,long id,boolean lock){var user=repo.user(id,lock).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));if(!actor.permissions().containsAll(repo.potentialPermissions(id)))throw new ResponseStatusException(HttpStatus.NOT_FOUND);return user;}
+ private RbacRepository.Role manageableRole(RbacIdentity.Identity actor,long id){var role=repo.role(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));if(!actor.permissions().containsAll(repo.rolePermissions(id)))throw new ResponseStatusException(HttpStatus.NOT_FOUND);return role;}
+ private void roleImpact(RbacIdentity.Identity actor,long role){var ids=repo.affectedUsers(role);repo.lockUsers(ids);var potential=repo.potentialPermissionsForUsers(ids);for(Long id:ids)grantable(actor.permissions(),potential.getOrDefault(id,Set.of()));}
+ private void notSelf(long actor,long target){if(actor==target)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Use personal endpoints for self changes");}
+ private Set<String> permissionSet(List<String> codes,RbacIdentity.Identity actor){var set=new TreeSet<>(codes);if(set.size()!=codes.size())throw new ResponseStatusException(HttpStatus.BAD_REQUEST);if(!repo.catalog().containsAll(set))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unknown permission");grantable(actor.permissions(),set);return set;}
+ private List<Long> assignedRoles(List<String> values,RbacIdentity.Identity actor){var ids=values.stream().map(V2Id::parse).map(V2Id::value).toList();if(new HashSet<>(ids).size()!=ids.size())throw new ResponseStatusException(HttpStatus.BAD_REQUEST);for(Long id:ids){manageableRole(actor,id);grantable(actor.permissions(),repo.rolePermissions(id));}return ids;}
+ private Map<String,Object> userView(RbacRepository.User u,boolean privateFields,List<Map<String,Object>> roles){var out=new LinkedHashMap<String,Object>();out.put("id",Long.toString(u.id()));out.put("username",u.username());out.put("realName",u.realName());out.put("legacyRole",u.legacyRole());out.put("enabled",u.enabled());out.put("authVersion",u.authVersion());out.put("version",u.version());out.put("roles",roles);if(privateFields)out.put("phone",u.phone());return out;}
+ private Map<String,Object> userView(RbacRepository.User u,boolean privateFields){return userView(u,privateFields,repo.roleViewsForUsers(List.of(u.id())).getOrDefault(u.id(),List.of()));}
+ private Map<String,Object> roleView(RbacRepository.Role role,Set<String> permissions){return Map.of("id",Long.toString(role.id()),"code",role.code(),"name",role.name(),"enabled",role.enabled(),"version",role.version(),"permissionCodes",permissions);}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public Map<String,Object> me(){var a=identity.actor();var view=userView(a.user(),false);view.put("permissions",a.permissions());var workspaces=new ArrayList<String>();if(a.permissions().contains("user:manage")||a.permissions().contains("role:manage"))workspaces.add("ADMIN");String legacy=RbacIdentity.legacyScope(a);if(legacy.equals("STUDENT"))workspaces.add("STUDENT");if(legacy.equals("REPAIRER"))workspaces.add("REPAIRER");view.put("availableWorkspaces",workspaces);return view;}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public Map<String,Object> profile(){var a=identity.require("profile:read");return userView(a.user(),true);}
+ @Transactional public Map<String,Object> profile(Inputs.Basics input){var a=writeActor("profile:write");var u=repo.user(a.user().id(),true).orElseThrow(RbacIdentity::unauthorized);version(u.version(),input.version);updated(repo.basics(u.id(),input.version,input.realName,input.phoneProvided()?input.phoneValue():u.phone()));audit.record(u.id(),"PROFILE_UPDATED","USER",u.id(),Map.of("fields",List.of("realName","phone")));return userView(repo.user(u.id(),false).orElseThrow(),true);}
+ @Transactional public Map<String,Object> password(Inputs.PasswordChange input){var a=writeActor("profile:password");var u=repo.user(a.user().id(),true).orElseThrow(RbacIdentity::unauthorized);version(u.version(),input.version);passwordPolicy(input.newPassword);if(input.oldPassword.getBytes(StandardCharsets.UTF_8).length>72||!matches(input.oldPassword,u.passwordHash()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Old password rejected");updated(repo.password(u.id(),input.version,passwords.encode(input.newPassword)));audit.record(u.id(),"PASSWORD_CHANGED","USER",u.id(),Map.of("sessionsRevoked",true));return Map.of("reloginRequired",true);}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public V2Page<Map<String,Object>> users(int page,int size,String keyword){var a=identity.require("user:manage");var request=new V2Page.Request(page,size);if(keyword==null)keyword="";if(keyword.length()>80)throw new IllegalArgumentException();String csv=String.join(",",a.permissions());var users=repo.users(csv,keyword,size,request.offset());var roles=repo.roleViewsForUsers(users.stream().map(RbacRepository.User::id).toList());return new V2Page<>(users.stream().map(u->userView(u,false,roles.getOrDefault(u.id(),List.of()))).toList(),page,size,repo.userCount(csv,keyword));}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public Map<String,Object> user(long id){var a=identity.require("user:manage");return userView(manageableUser(a,id,false),true);}
+ @Transactional public Map<String,Object> createUser(Inputs.CreateUser input){var a=writeActor("user:manage");identity.require("role:manage");passwordPolicy(input.password);var roles=assignedRoles(input.roleIds,a);if(input.legacyRole==null||!Set.of("STUDENT","REPAIRER","ADMIN").contains(input.legacyRole))throw new IllegalArgumentException();if(repo.byUsername(input.username).isPresent())throw new ResponseStatusException(HttpStatus.CONFLICT);long id=repo.createUser(input.username,passwords.encode(input.password),input.realName,input.phone,input.legacyRole);repo.replaceRoles(id,roles);lastManager();audit.record(a.user().id(),"USER_CREATED","USER",id,Map.of("roleIds",input.roleIds));return userView(repo.user(id,false).orElseThrow(),true);}
+ @Transactional public Map<String,Object> editUser(long id,Inputs.Basics input){var a=writeActor("user:manage");notSelf(a.user().id(),id);var u=manageableUser(a,id,true);version(u.version(),input.version);updated(repo.basics(id,input.version,input.realName,input.phoneProvided()?input.phoneValue():u.phone()));audit.record(a.user().id(),"USER_UPDATED","USER",id,Map.of("fields",List.of("realName","phone")));return userView(repo.user(id,false).orElseThrow(),true);}
+ @Transactional public Map<String,Object> enabled(long id,Inputs.Version input,boolean enabled){var a=writeActor("user:manage");notSelf(a.user().id(),id);var u=manageableUser(a,id,true);version(u.version(),input.version);if(u.enabled()==enabled)throw new ResponseStatusException(HttpStatus.CONFLICT);updated(repo.enabled(id,input.version,enabled));lastManager();audit.record(a.user().id(),enabled?"USER_ENABLED":"USER_DISABLED","USER",id,Map.of("sessionsRevoked",true));return userView(repo.user(id,false).orElseThrow(),false);}
+ @Transactional public Map<String,Object> resetPassword(long id,Inputs.PasswordReset input){var a=writeActor("user:manage");notSelf(a.user().id(),id);var u=manageableUser(a,id,true);version(u.version(),input.version);passwordPolicy(input.newPassword);updated(repo.password(id,input.version,passwords.encode(input.newPassword)));audit.record(a.user().id(),"PASSWORD_RESET","USER",id,Map.of("sessionsRevoked",true));return userView(repo.user(id,false).orElseThrow(),false);}
+ @Transactional public Map<String,Object> userRoles(long id,Inputs.UserRoles input){var a=writeActor("user:manage");identity.require("role:manage");notSelf(a.user().id(),id);var u=manageableUser(a,id,true);version(u.version(),input.version);var roles=assignedRoles(input.roleIds,a);repo.replaceRoles(id,roles);updated(repo.revoke(id,input.version));lastManager();audit.record(a.user().id(),"USER_ROLES_CHANGED","USER",id,Map.of("roleIds",input.roleIds,"sessionsRevoked",true));return userView(repo.user(id,false).orElseThrow(),false);}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public V2Page<Map<String,Object>> roles(int page,int size){var a=identity.require("role:manage");var request=new V2Page.Request(page,size);String csv=String.join(",",a.permissions());var roles=repo.roles(csv,size,request.offset());var perms=repo.rolePermissionsFor(roles.stream().map(RbacRepository.Role::id).toList());return new V2Page<>(roles.stream().map(role->roleView(role,perms.getOrDefault(role.id(),Set.of()))).toList(),page,size,repo.roleCount(csv));}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public Map<String,Object> role(long id){var a=identity.require("role:manage");return roleView(manageableRole(a,id),repo.rolePermissions(id));}
+ @Transactional public Map<String,Object> createRole(Inputs.RoleCreate input){var a=writeActor("role:manage");var codes=permissionSet(input.permissionCodes,a);long id=repo.createRole(input.code,input.name);repo.replacePermissions(id,codes);lastManager();audit.record(a.user().id(),"ROLE_CREATED","ROLE",id,Map.of("permissionCodes",codes));return roleView(repo.role(id).orElseThrow(),codes);}
+ @Transactional public Map<String,Object> editRole(long id,Inputs.RoleEdit input){var a=writeActor("role:manage");var role=manageableRole(a,id);version(role.version(),input.version);roleImpact(a,id);updated(repo.roleBasics(id,input.version,input.name,input.enabled));repo.revokeRoleUsers(id);lastManager();audit.record(a.user().id(),"ROLE_UPDATED","ROLE",id,Map.of("enabled",input.enabled,"sessionsRevoked",true));return roleView(repo.role(id).orElseThrow(),repo.rolePermissions(id));}
+ @Transactional public Map<String,Object> roleEnabled(long id,Inputs.Version input,boolean enabled){var a=writeActor("role:manage");var role=manageableRole(a,id);version(role.version(),input.version);roleImpact(a,id);if(role.enabled()==enabled)throw new ResponseStatusException(HttpStatus.CONFLICT);updated(repo.roleBasics(id,input.version,role.name(),enabled));repo.revokeRoleUsers(id);lastManager();audit.record(a.user().id(),enabled?"ROLE_ENABLED":"ROLE_DISABLED","ROLE",id,Map.of("sessionsRevoked",true));return roleView(repo.role(id).orElseThrow(),repo.rolePermissions(id));}
+ @Transactional public Map<String,Object> rolePermissions(long id,Inputs.RolePermissions input){var a=writeActor("role:manage");var role=manageableRole(a,id);version(role.version(),input.version);var codes=permissionSet(input.permissionCodes,a);roleImpact(a,id);updated(repo.roleBasics(id,input.version,role.name(),role.enabled()));repo.replacePermissions(id,codes);repo.revokeRoleUsers(id);lastManager();audit.record(a.user().id(),"ROLE_PERMISSIONS_CHANGED","ROLE",id,Map.of("permissionCodes",codes,"sessionsRevoked",true));return roleView(repo.role(id).orElseThrow(),codes);}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public V2Page<Map<String,Object>> permissions(int page,int size){identity.require("permission:read");var request=new V2Page.Request(page,size);return new V2Page<>(repo.catalogPage(size,request.offset()),page,size,repo.catalogCount());}
+ @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+ public V2Page<Map<String,Object>> audits(int page,int size){identity.require("audit:read");var request=new V2Page.Request(page,size);return new V2Page<>(audit.page(size,request.offset()),page,size,audit.count());}
+}

@@ -7,6 +7,6 @@ $env:FLOWABLE_REHEARSAL_DB_NAME='dorm_repair_v2_test_rehearsal'
 $repoRoot=Split-Path $PSScriptRoot -Parent
 Push-Location (Join-Path $repoRoot 'backend')
 try {
- & mvn.cmd -B test '-Dflowable.stageA=true' '-Dflowable.stageB=true' '-Dflowable.stageC=true' '-Dflowable.stageD=true' '-Dflowable.v2A=true'
+ & mvn.cmd -B test '-Dflowable.stageA=true' '-Dflowable.stageB=true' '-Dflowable.stageC=true' '-Dflowable.stageD=true' '-Dflowable.v2A=true' '-Dflowable.v2B=true'
  if($LASTEXITCODE -ne 0){throw 'V2 foundation or V1 regression failed'}
 } finally {Pop-Location}

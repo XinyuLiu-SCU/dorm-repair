@@ -13,7 +13,7 @@ import com.dormrepair.service.RepairOrderService;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties={
- "spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_migration_test_20261123_d",
+ "spring.datasource.url=jdbc:postgresql://localhost:5432/dorm_repair_v2_test_rehearsal",
  "spring.datasource.username=${FLOWABLE_TEST_DB_USER:sota}", "spring.datasource.password=${FLOWABLE_TEST_DB_PASSWORD:}",
  "app.jwt.secret=migration-rehearsal-test-key-32-bytes-only",
  "app.workflow.enabled=true", "flowable.process.enabled=true", "flowable.database-schema-update=false", "flowable.history-level=audit"})
