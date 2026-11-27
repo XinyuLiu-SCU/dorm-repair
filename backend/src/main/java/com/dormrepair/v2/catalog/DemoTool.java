@@ -1,0 +1,2 @@
+package com.dormrepair.v2.catalog;
+public final class DemoTool {public static void main(String[] args){if(args.length!=0)throw new IllegalArgumentException("No command arguments");String user=System.getenv("V2_DB_USER");if(user==null||user.isBlank())throw new IllegalStateException("V2_DB_USER required");var ds=new org.springframework.jdbc.datasource.DriverManagerDataSource("jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_dev",user,System.getenv().getOrDefault("V2_DB_PASSWORD",""));System.out.println(DemoInitializer.initialize(ds));}}

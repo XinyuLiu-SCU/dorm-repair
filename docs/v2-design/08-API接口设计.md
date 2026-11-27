@@ -116,3 +116,8 @@ GET /public-incidents/{id}/results返回脱敏且管理员已确认的resultVers
 公共关联POST /public-incidents/{id}/links须本人提议同意且当前REVIEW或DISPATCH可用；其他阶段409 LINK_STAGE_CONFLICT。POST /incident-links/{id}/unlink-decision只在PUBLIC_LINKED_WAIT且未送达结果执行，否则409 USE_DISPUTE。公共阶段与status以05补充表为准，响应仍使用同一tasks/activities/epoch结构。
 
 材料交接请求含originalIssueMovementId/fromHolderId/toHolderId/qty及版本，操作者仍来自JWT；from/to是业务目标而非冒充操作者。POST /material-handovers/{id}/confirm由相应本人或授权仓库确认，双确认结果可查，不能单方改holder。/workflow/task-counts明确taskTotal和distinctOrderTotal。
+
+
+## C阶段获批局部补充
+
+2026-11-27：见[C局部补充](C-LOCAL-ADDENDUM.md)，实际结构与可编辑ER见[实际结构](../v2-development/V2.0-C-SCHEMA.md)，接口见根目录V2.0-C-API.md。旧R2标签不变，新空间与项目实体以补充记录为准；验收增加层级/循环、复合外键、权限迁移、二维码真实解码和并发/回滚。

@@ -1,0 +1,15 @@
+-- REJECTED: may revoke legitimate grants and retain an unintended keeper. NEVER EXECUTE.
+do $$ begin if current_database() !~ '^dorm_repair_v2_(dev|test(_[a-z0-9]+)?)$' then raise exception 'Unsafe target'; end if; end $$;
+select guard_key from public.system_guard where guard_key='rbac-admin' for update;
+-- V4 did not persist pre-migration grants. Keep one demonstrable full custodian,
+-- isolate its grants in a private role, and revoke ambiguous new write grants.
+create temporary table c6_keeper on commit drop as
+ select u.id from public.sys_user u where u.enabled and not exists(select 1 from public.sys_permission p where p.available and not exists(select 1 from public.sys_user_role ur join public.sys_role r on r.id=ur.role_id and r.enabled join public.sys_role_permission rp on rp.role_id=r.id where ur.user_id=u.id and rp.permission_id=p.id))
+ order by (u.id=(select initialized_user_id from public.system_guard where guard_key='rbac-admin')) desc nulls last,u.id limit 1;
+insert into public.sys_role(code,name) select 'C6_PRIVATE_CUSTODIAN','迁移隔离权限保管人' where exists(select 1 from c6_keeper);
+insert into public.sys_role_permission select r.id,p.id from public.sys_role r cross join public.sys_permission p where r.code='C6_PRIVATE_CUSTODIAN' and p.available;
+insert into public.sys_user_role select k.id,r.id from c6_keeper k cross join public.sys_role r where r.code='C6_PRIVATE_CUSTODIAN';
+delete from public.sys_role_permission rp using public.sys_permission p,public.sys_role r where rp.permission_id=p.id and rp.role_id=r.id and p.code in ('category:write','space:write','facility:write') and r.code<>'C6_PRIVATE_CUSTODIAN' and exists(select 1 from public.sys_user);
+update public.sys_user set auth_version=auth_version+1,version=version+1;
+update public.sys_role set version=version+1 where code<>'C6_PRIVATE_CUSTODIAN';
+insert into public.audit_event(action,target_type,request_id,details) values ('C6_GRANT_ISOLATION','RBAC','migration_c6',jsonb_build_object('policy','revoke ambiguous catalog write grants; operator reauthorization required','keeperCount',(select count(*) from c6_keeper)));

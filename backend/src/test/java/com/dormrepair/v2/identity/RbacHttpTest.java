@@ -36,7 +36,7 @@ class RbacHttpTest {
  private static final AtomicInteger PORT=new AtomicInteger();
  private static final String SECRET=random();
  private static String random(){byte[] b=new byte[32];new java.security.SecureRandom().nextBytes(b);return Base64.getEncoder().encodeToString(b);}
- @DynamicPropertySource static void env(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_rbac");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
+ @DynamicPropertySource static void env(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_quality");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
  @LocalServerPort int port;
  @Autowired JdbcTemplate jdbc;
  @Autowired javax.sql.DataSource dataSource;
@@ -72,7 +72,7 @@ class RbacHttpTest {
  @BeforeEach void fixtures()throws Exception{
   PORT.set(port);auditTarget=AopTestUtils.getUltimateTargetObject(audit);reset(auditTarget);
   new TransactionTemplate(transactionManager).execute(status->{
-   jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>)c->{V2DatabaseTarget.requireTestReset(c);if(!c.getCatalog().equals("dorm_repair_v2_test_rbac"))throw new IllegalStateException("Wrong fixture database");return null;});
+   jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>)c->{V2DatabaseTarget.requireTestReset(c);if(!c.getCatalog().equals("dorm_repair_v2_test_quality"))throw new IllegalStateException("Wrong fixture database");return null;});
    jdbc.queryForObject("select guard_key from public.system_guard where guard_key='rbac-admin' for update",String.class);
    jdbc.execute("truncate public.audit_event");jdbc.update("update public.system_guard set initialized_user_id=null,version=0");
    jdbc.update("delete from public.repair_record");jdbc.update("delete from public.repair_order_legacy");jdbc.update("delete from public.repair_order");jdbc.update("delete from public.sys_user_role");jdbc.update("delete from public.sys_user");
@@ -82,8 +82,8 @@ class RbacHttpTest {
   });
   password=UUID.randomUUID().toString();adminName=newUsername();var result=BootstrapAdministrator.initializeForTest(dataSource,passwords,adminName,password);adminId=Long.parseLong(result.userId());admin=login(adminName,password);
  }
- @AfterAll static void summary()throws Exception{java.nio.file.Files.writeString(java.nio.file.Path.of("target/V2.0-B-http-summary.json"),"{\"transport\":\"real HTTP and PostgreSQL\",\"requests\":"+REQUESTS.get()+",\"port\":"+PORT.get()+",\"database\":\"dorm_repair_v2_test_rbac\"}");}
- @Test void permissionSeedsMatchOnlyImplementedInterfaces()throws Exception{var p=call("GET","/api/v2/permissions?size=100",admin,null,200);assertEquals(10,p.get("total").asInt());for(var item:p.get("items")){assertTrue(item.get("id").isTextual());assertTrue(item.get("available").asBoolean());assertFalse(item.get("code").asText().startsWith("order:"));}assertEquals("3",call("GET","/api/v2/system/info",admin,null,200).get("businessMigrationVersion").asText());}
+ @AfterAll static void summary()throws Exception{java.nio.file.Files.writeString(java.nio.file.Path.of("target/V2.0-B-http-summary.json"),"{\"transport\":\"real HTTP and PostgreSQL\",\"requests\":"+REQUESTS.get()+",\"port\":"+PORT.get()+",\"database\":\"dorm_repair_v2_test_quality\"}");}
+ @Test void permissionSeedsMatchOnlyImplementedInterfaces()throws Exception{var p=call("GET","/api/v2/permissions?size=100",admin,null,200);assertEquals(16,p.get("total").asInt());for(var item:p.get("items")){assertTrue(item.get("id").isTextual());assertTrue(item.get("available").asBoolean());assertFalse(item.get("code").asText().startsWith("order:"));}assertEquals("6",call("GET","/api/v2/system/info",admin,null,200).get("businessMigrationVersion").asText());}
  @Test void multipleRolePermissionsAreUnionNotRoleNames()throws Exception{
   long first=createRole(Set.of("profile:read")),second=createRole(Set.of("permission:read"));var a=createUser(List.of(first,second),"STUDENT");var me=call("GET","/api/v2/auth/me",a.token(),null,200);assertEquals(2,me.get("roles").size());assertEquals(Set.of("profile:read","permission:read"),json.convertValue(me.get("permissions"),new com.fasterxml.jackson.core.type.TypeReference<Set<String>>(){}));call("GET","/api/v2/profile",a.token(),null,200);call("GET","/api/v2/permissions",a.token(),null,200);call("GET","/api/v2/users",a.token(),null,403);
  }
