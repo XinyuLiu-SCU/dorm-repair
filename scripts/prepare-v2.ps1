@@ -7,7 +7,7 @@ $createdb=Join-Path (Split-Path $psql -Parent) 'createdb.exe'
 $oldPgPassword=$env:PGPASSWORD
 try {
  if($env:V2_DB_PASSWORD){$env:PGPASSWORD=$env:V2_DB_PASSWORD}
- $databases=@('dorm_repair_v2_dev','dorm_repair_v2_test','dorm_repair_v2_test_legacy','dorm_repair_v2_test_failure','dorm_repair_v2_test_rbac','dorm_repair_v2_test_quality','dorm_repair_v2_test_foundationquality','dorm_repair_v2_test_demo','dorm_repair_v2_test_grants')
+ $databases=@('dorm_repair_v2_dev','dorm_repair_v2_test','dorm_repair_v2_test_legacy','dorm_repair_v2_test_failure','dorm_repair_v2_test_rbac','dorm_repair_v2_test_quality','dorm_repair_v2_test_foundationquality','dorm_repair_v2_test_demo','dorm_repair_v2_test_grants','dorm_repair_v2_test_qualityd','dorm_repair_v2_test_foundationd','dorm_repair_v2_test_preparation','dorm_repair_v2_test_grantsd','dorm_repair_v2_test_migrationhttpd')
  if($IncludeRegression){$databases+=@('dorm_repair_v2_test_v1','dorm_repair_v2_test_rehearsal')}
  foreach($database in $databases){
   if($database -notmatch '^dorm_repair_v2_(dev|test(_[a-z0-9]+)?)$'){throw 'Rejected unsafe target'}
