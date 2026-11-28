@@ -26,14 +26,16 @@ VITE_DATA_MODE=live
 
 当前session.rolePath依赖user.role，而V2 /auth/me含legacyRole与permissions：不要直接覆盖旧结构导致导航报错。可以保留V1兼容身份用于旧布局，并单独读取/v2/auth/me权限，或显式映射legacyRole；数据范围仍由后端决定。
 
-开发库不设默认密码。由操作者用既有scripts/initialize-v2-admin.ps1安全创建首个合成管理员，再通过B接口创建学生/维修账号并分配所需角色；不在前端硬编码账号。C合成空间设施可直接使用，PRIVATE设施只有管理确认入住后普通学生才可见。
+开发库不设默认密码。本机已通过既有安全工具及B接口准备超级管理员、普通业务管理员、学生和维修人员合成账号；本机受限凭据文件仅供私下取用，不进Git，不在前端硬编码账号。其他新环境仍使用scripts/initialize-v2-admin.ps1显式初始化。详见FINAL-INTEGRATION-PREP.md。C合成空间设施可直接使用，PRIVATE设施只有管理确认入住后普通学生才可见。
 
 ## 核心后端已提供
 
-正式成单、真实dormRepairV2、预约子流程、推荐前三名、异常改派、连续返工、五星评价、统计、任务与实际BPMN XML参见CORE-API.md。start-v2.ps1启用v2-dev,v2-core；V2独立数据库中的业务迁移与引擎建表受环境保护。E归档标签v2.0-e-images保留，核心实现尚未提交或推送。
+正式成单、真实dormRepairV2、预约子流程、推荐前三名、异常改派、连续返工、五星评价、统计、任务与实际BPMN XML参见CORE-API.md。start-v2.ps1启用v2-dev,v2-core；V2独立数据库中的业务迁移与引擎建表受环境保护。E归档标签v2.0-e-images保留；核心后端已归档为v2.0-core-complete；远端同步入口为feature/v2-development，队友拉取及本机启动见V2-TEAM-START.md。联调账号、当前V1前端状态及安全同步建议见FINAL-INTEGRATION-PREP.md。
 
 ## 最终联调展示目标
 
 学生：报修、扫码、地址、图片、预约、进度、评价。维修：任务工作台、日程、处理及异常。管理：真实统计、审批派单、流程可视化、设施、权限。沿用现有组件和视觉体系，小步接API；最终用真实浏览器走完整角色链，不以HTTP测试替代浏览器验收。
 
 本轮代码仍在本地，未擅自推送远程；联调应使用当前本地后端，或取得同步后的实现再运行，不能把远程旧版当作A–E已部署。
+
+队友首次拉取请先阅读[V2-TEAM-START.md](V2-TEAM-START.md)，本机凭据、私有图片及本地环境文件不随Git交接。
