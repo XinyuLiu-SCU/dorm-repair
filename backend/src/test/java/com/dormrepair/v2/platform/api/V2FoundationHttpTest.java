@@ -22,7 +22,7 @@ class V2FoundationHttpTest {
  private static final HttpClient HTTP=HttpClient.newHttpClient();
  private static final String SECRET=randomSecret();
  private static String randomSecret(){byte[] bytes=new byte[32];new SecureRandom().nextBytes(bytes);return Base64.getEncoder().encodeToString(bytes);}
- @DynamicPropertySource static void environment(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_foundationd");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
+ @DynamicPropertySource static void environment(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_foundatione");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
  @LocalServerPort int port;
  @Autowired JdbcTemplate jdbc;
  @Autowired ObjectMapper json;
@@ -38,7 +38,7 @@ class V2FoundationHttpTest {
   if(body!=null)b.header("Content-Type","application/json");b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));return HTTP.send(b.build(),HttpResponse.BodyHandlers.ofString());
  }
  @Test void authorizedInfoUsesIsolatedMigrationAndContainsNoPrivateConfiguration()throws Exception{
-  var response=send("GET","/api/v2/system/info",token,null,Map.of("X-Request-Id","review_trace_123"));assertEquals(200,response.statusCode());var info=json.readTree(response.body());assertEquals("V2.0-D",info.get("stage").asText());assertEquals("10",info.get("businessMigrationVersion").asText());assertFalse(info.get("workflowEnabled").asBoolean());assertEquals("review_trace_123",response.headers().firstValue("X-Request-Id").orElseThrow());
+  var response=send("GET","/api/v2/system/info",token,null,Map.of("X-Request-Id","review_trace_123"));assertEquals(200,response.statusCode());var info=json.readTree(response.body());assertEquals("V2.0 Final — E",info.get("stage").asText());assertEquals("11",info.get("businessMigrationVersion").asText());assertFalse(info.get("workflowEnabled").asBoolean());assertEquals("review_trace_123",response.headers().firstValue("X-Request-Id").orElseThrow());
   for(String field:List.of("database","password","username","secret","url"))assertFalse(info.has(field));
   assertTrue(context.getBeansOfType(org.flowable.engine.ProcessEngine.class).isEmpty());assertEquals(0,jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='public' and (table_name like 'act_%' or table_name like 'flw_%')",Integer.class));
  }

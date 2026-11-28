@@ -7,6 +7,6 @@ import org.springframework.stereotype.Service;
 public class PlatformInfoService {
  private final Flyway flyway;
  public PlatformInfoService(Flyway flyway){this.flyway=flyway;}
- public Info info(){var current=flyway.info().current();return new Info("v2","V2.0-D",current==null?null:current.getVersion().getVersion(),false);}
+ public Info info(){var current=flyway.info().current();return new Info("v2","V2.0 Final — E",current==null?null:current.getVersion().getVersion(),false);}
  public record Info(String apiVersion,String stage,String businessMigrationVersion,boolean workflowEnabled){}
 }

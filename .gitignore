@@ -94,3 +94,6 @@ Desktop.ini
 *.trace.zip
 playwright-report/
 test-results/
+
+# Local private image runtime storage, never source assets
+**/.private-images/

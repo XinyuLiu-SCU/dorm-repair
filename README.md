@@ -108,3 +108,7 @@ R2设计本地标签v2-design-r2。V2仅在独立开发分支；本阶段是迁�
 ## V2.0-B 动态身份与用户管理
 
 V2.0-A本地归档标签v2.0-a-foundation。B阶段接口见[V2.0-B-API.md](V2.0-B-API.md)，首个合成管理员须按[初始化说明](docs/v2-development/V2.0-B-INITIALIZATION.md)显式创建，没有默认密码。scripts/test-v2.ps1同时运行原99项与B阶段新增验收，均使用V2隔离测试库。
+
+## V2.0 Final 课程设计范围
+
+以 FINAL-SCOPE.md 为本次交付范围，R2保留为长期参考。图片接口见 E-API.md，前端并行清单见 FRONTEND-HANDOFF.md，后续闭环计划见 CORE-PLAN.md。A至D稳定成果继续保留。

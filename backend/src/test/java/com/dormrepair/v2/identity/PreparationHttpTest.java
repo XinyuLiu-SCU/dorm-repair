@@ -37,7 +37,7 @@ class PreparationHttpTest {
  private static final AtomicInteger PORT=new AtomicInteger();
  private static final String SECRET=random();
  private static String random(){byte[] b=new byte[32];new java.security.SecureRandom().nextBytes(b);return Base64.getEncoder().encodeToString(b);}
- @DynamicPropertySource static void env(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_preparation");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
+ @DynamicPropertySource static void env(DynamicPropertyRegistry r){r.add("spring.datasource.url",()->"jdbc:postgresql://127.0.0.1:5432/dorm_repair_v2_test_preparatione");r.add("V2_DB_USER",()->System.getenv().getOrDefault("V2_DB_USER","sota"));r.add("V2_DB_PASSWORD",()->System.getenv().getOrDefault("V2_DB_PASSWORD",""));r.add("V2_JWT_SECRET",()->SECRET);}
  @LocalServerPort int port;
  @MockitoSpyBean JdbcTemplate jdbc;
  @Autowired javax.sql.DataSource dataSource;
@@ -73,9 +73,9 @@ class PreparationHttpTest {
  @BeforeEach void fixtures()throws Exception{
   PORT.set(port);auditTarget=AopTestUtils.getUltimateTargetObject(audit);reset(auditTarget);
   new TransactionTemplate(transactionManager).execute(status->{
-   jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>)c->{V2DatabaseTarget.requireTestReset(c);if(!c.getCatalog().equals("dorm_repair_v2_test_preparation"))throw new IllegalStateException("Wrong fixture database");return null;});
+   jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>)c->{V2DatabaseTarget.requireTestReset(c);if(!c.getCatalog().equals("dorm_repair_v2_test_preparatione"))throw new IllegalStateException("Wrong fixture database");return null;});
    jdbc.queryForObject("select guard_key from public.system_guard where guard_key='rbac-admin' for update",String.class);
-   jdbc.execute("truncate public.repair_draft_revision,public.repair_draft,public.user_address,public.room_resident restart identity cascade");jdbc.execute("truncate public.facility,public.facility_type_repair_item,public.facility_type,public.repair_item,public.room,public.building_floor,public.building,public.campus restart identity cascade");jdbc.update("delete from public.repair_category where parent_id is not null");jdbc.update("update public.repair_category set enabled=true,version=0");jdbc.execute("truncate public.audit_event");jdbc.update("update public.system_guard set initialized_user_id=null,version=0");
+   jdbc.execute("truncate public.draft_revision_image,public.private_image,public.repair_draft_revision,public.repair_draft,public.user_address,public.room_resident restart identity cascade");jdbc.execute("truncate public.facility,public.facility_type_repair_item,public.facility_type,public.repair_item,public.room,public.building_floor,public.building,public.campus restart identity cascade");jdbc.update("delete from public.repair_category where parent_id is not null");jdbc.update("update public.repair_category set enabled=true,version=0");jdbc.execute("truncate public.audit_event");jdbc.update("update public.system_guard set initialized_user_id=null,version=0");
    jdbc.update("delete from public.repair_record");jdbc.update("delete from public.repair_order_legacy");jdbc.update("delete from public.repair_order");jdbc.update("delete from public.sys_user_role");jdbc.update("delete from public.sys_user");
    jdbc.update("delete from public.sys_role_permission");jdbc.update("delete from public.sys_role where code not in ('STUDENT','REPAIRER','ADMIN')");jdbc.update("update public.sys_role set enabled=true,version=0");
    jdbc.update("insert into public.sys_role_permission(role_id,permission_id) select r.id,p.id from public.sys_role r cross join public.sys_permission p where r.code='ADMIN'");
@@ -83,7 +83,7 @@ class PreparationHttpTest {
   });
   password=UUID.randomUUID().toString();adminName=newUsername();var result=BootstrapAdministrator.initializeForTest(dataSource,passwords,adminName,password);adminId=Long.parseLong(result.userId());admin=login(adminName,password);
  }
- @AfterAll static void summary()throws Exception{java.nio.file.Files.writeString(java.nio.file.Path.of("target/V2.0-D-http-summary.json"),"{\"transport\":\"real HTTP and PostgreSQL\",\"requests\":"+REQUESTS.get()+",\"port\":"+PORT.get()+",\"database\":\"dorm_repair_v2_test_preparation\"}");}
+ @AfterAll static void summary()throws Exception{java.nio.file.Files.writeString(java.nio.file.Path.of("target/V2.0-D-http-summary.json"),"{\"transport\":\"real HTTP and PostgreSQL\",\"requests\":"+REQUESTS.get()+",\"port\":"+PORT.get()+",\"database\":\"dorm_repair_v2_test_preparatione\"}");}
 
  JsonNode create(String kind,Map<String,Object> body)throws Exception{return call("POST","/api/v2/catalog/admin/"+kind,admin,body,200);}
  String root(){return jdbc.queryForObject("select id::text from public.repair_category where code='WATER'",String.class);}
