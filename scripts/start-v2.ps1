@@ -5,4 +5,4 @@ $listener=Get-NetTCPConnection -State Listen -LocalPort 18081 -ErrorAction Silen
 if($listener){throw 'Port 18081 is occupied; no existing process was stopped'}
 $repoRoot=Split-Path $PSScriptRoot -Parent
 Push-Location (Join-Path $repoRoot 'backend')
-try{& mvn.cmd spring-boot:run '-Dspring-boot.run.profiles=v2-dev';if($LASTEXITCODE -ne 0){throw 'V2 startup failed'}}finally{Pop-Location}
+try{& mvn.cmd spring-boot:run '-Dspring-boot.run.profiles=v2-dev,v2-core';if($LASTEXITCODE -ne 0){throw 'V2 startup failed'}}finally{Pop-Location}

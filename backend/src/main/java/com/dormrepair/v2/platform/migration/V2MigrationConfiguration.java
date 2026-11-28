@@ -17,7 +17,8 @@ public class V2MigrationConfiguration {
         if(mode.equals("DEV")&&!database.equals("dorm_repair_v2_dev") || mode.equals("TEST")&&!database.startsWith("dorm_repair_v2_test"))throw new IllegalStateException("V2 profile/database mismatch");
         int port=env.getProperty("server.port",Integer.class,18081);
         if((port!=18081&&port!=0)||!"127.0.0.1".equals(env.getProperty("server.address")))throw new IllegalStateException("V2 binds 127.0.0.1:18081 only (random port allowed for tests)");
-        for(String key:new String[]{"flowable.process.enabled","flowable.database-schema-update","flowable.async-executor-activate","app.workflow.enabled"})if(!"false".equals(env.getProperty(key)))throw new IllegalStateException("V2.0-A must keep workflow and automatic engine DDL disabled");
+        for(String key:new String[]{"flowable.process.enabled","flowable.database-schema-update","flowable.async-executor-activate"})if(!"false".equals(env.getProperty(key)))throw new IllegalStateException("V2.0-A must keep workflow and automatic engine DDL disabled");
+        if(env.getProperty("app.workflow.enabled",Boolean.class,false)!=env.getProperty("app.v2.core.enabled",Boolean.class,false))throw new IllegalStateException("Workflow requires the explicit isolated core profile");
         if(!env.getProperty("spring.flyway.enabled",Boolean.class,false))throw new IllegalStateException("V2 foundation requires guarded migrations");
         return new Object();
     }

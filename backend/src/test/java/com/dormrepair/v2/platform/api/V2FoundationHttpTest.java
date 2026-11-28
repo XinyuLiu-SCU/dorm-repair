@@ -38,7 +38,7 @@ class V2FoundationHttpTest {
   if(body!=null)b.header("Content-Type","application/json");b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));return HTTP.send(b.build(),HttpResponse.BodyHandlers.ofString());
  }
  @Test void authorizedInfoUsesIsolatedMigrationAndContainsNoPrivateConfiguration()throws Exception{
-  var response=send("GET","/api/v2/system/info",token,null,Map.of("X-Request-Id","review_trace_123"));assertEquals(200,response.statusCode());var info=json.readTree(response.body());assertEquals("V2.0 Final — E",info.get("stage").asText());assertEquals("11",info.get("businessMigrationVersion").asText());assertFalse(info.get("workflowEnabled").asBoolean());assertEquals("review_trace_123",response.headers().firstValue("X-Request-Id").orElseThrow());
+  var response=send("GET","/api/v2/system/info",token,null,Map.of("X-Request-Id","review_trace_123"));assertEquals(200,response.statusCode());var info=json.readTree(response.body());assertEquals("V2.0 Final — E",info.get("stage").asText());assertEquals("13",info.get("businessMigrationVersion").asText());assertFalse(info.get("workflowEnabled").asBoolean());assertEquals("review_trace_123",response.headers().firstValue("X-Request-Id").orElseThrow());
   for(String field:List.of("database","password","username","secret","url"))assertFalse(info.has(field));
   assertTrue(context.getBeansOfType(org.flowable.engine.ProcessEngine.class).isEmpty());assertEquals(0,jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='public' and (table_name like 'act_%' or table_name like 'flw_%')",Integer.class));
  }
